@@ -1,3 +1,7 @@
 domain: h3poteto.dev
 repo: github.com/h3poteto/node-manager
+resources:
+- group: operator
+  kind: NodeManager
+  version: v1alpha1
 version: "2"

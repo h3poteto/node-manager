@@ -1,0 +1,24 @@
+# permissions for end users to edit nodemanagers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nodemanager-editor-role
+rules:
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - nodemanagers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - nodemanagers/status
+  verbs:
+  - get

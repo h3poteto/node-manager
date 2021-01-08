@@ -1,0 +1,20 @@
+# permissions for end users to view nodemanagers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nodemanager-viewer-role
+rules:
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - nodemanagers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - nodemanagers/status
+  verbs:
+  - get
