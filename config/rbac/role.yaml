@@ -9,6 +9,26 @@ rules:
 - apiGroups:
   - operator.h3poteto.dev
   resources:
+  - awsnodereplenishers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - awsnodereplenishers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
   - nodemanagers
   verbs:
   - create

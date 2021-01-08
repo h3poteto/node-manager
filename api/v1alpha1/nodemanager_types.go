@@ -30,8 +30,8 @@ type NodeManagerSpec struct {
 
 // NodeManagerStatus defines the observed state of NodeManager
 type NodeManagerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	MasterNodeReplenisherName string `json:"masterNodeReplenisherName,omitempty"`
+	WorkerNodeReplenisherName string `json:"workerNodeReplenisherName,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -65,17 +65,9 @@ type CloudAWS struct {
 	// +kubebuilder:validation:Enum=aws
 	Region string `json:"string"`
 	// +nullable
-	Masters *Masters `json:"masters,omitempty"`
+	Masters *Nodes `json:"masters,omitempty"`
 	// +nullable
-	Nodes *Nodes `json:"nodes,omitempty"`
-}
-
-type Masters struct {
-	// +kubebuilder:validation:Required
-	AutoScalingGroups []AutoScalingGroup `json:"autoScalingGroups"`
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type:=int32
-	Desired int32 `json:"desired"`
+	Workers *Nodes `json:"nodes,omitempty"`
 }
 
 type Nodes struct {
@@ -84,6 +76,13 @@ type Nodes struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=int32
 	Desired int32 `json:"desired"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=int32
+	ScaleInWaitSeconds int32 `json:"scaleInWaitSeconds"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=bool
+	// +kubebuilder:default=true
+	EnableReplenish bool `json:"enableReplenish"`
 }
 
 type AutoScalingGroup struct {

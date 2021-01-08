@@ -1,0 +1,7 @@
+apiVersion: operator.h3poteto.dev/v1alpha1
+kind: AWSNodeReplenisher
+metadata:
+  name: awsnodereplenisher-sample
+spec:
+  # Add fields here
+  foo: bar

@@ -1,0 +1,24 @@
+# permissions for end users to edit awsnodereplenishers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: awsnodereplenisher-editor-role
+rules:
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - awsnodereplenishers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - awsnodereplenishers/status
+  verbs:
+  - get

@@ -54,9 +54,17 @@ spec:
                       desired:
                         format: int32
                         type: int32
+                      enableReplenish:
+                        default: true
+                        type: bool
+                      scaleInWaitSeconds:
+                        format: int32
+                        type: int32
                     required:
                     - autoScalingGroups
                     - desired
+                    - enableReplenish
+                    - scaleInWaitSeconds
                     type: object
                   nodes:
                     nullable: true
@@ -73,9 +81,17 @@ spec:
                       desired:
                         format: int32
                         type: int32
+                      enableReplenish:
+                        default: true
+                        type: bool
+                      scaleInWaitSeconds:
+                        format: int32
+                        type: int32
                     required:
                     - autoScalingGroups
                     - desired
+                    - enableReplenish
+                    - scaleInWaitSeconds
                     type: object
                   string:
                     default: aws
@@ -92,6 +108,11 @@ spec:
             type: object
           status:
             description: NodeManagerStatus defines the observed state of NodeManager
+            properties:
+              masterNodeReplenisherName:
+                type: string
+              workerNodeReplenisherName:
+                type: string
             type: object
         type: object
     served: true
