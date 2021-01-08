@@ -20,16 +20,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // NodeManagerSpec defines the desired state of NodeManager
 type NodeManagerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of NodeManager. Edit NodeManager_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	CloudProvider string `json:"cloudProvider"`
+	// +optional
+	// +nullable
+	Aws CloudAWS `json:"aws,omitempty"`
 }
 
 // NodeManagerStatus defines the observed state of NodeManager
@@ -60,4 +56,38 @@ type NodeManagerList struct {
 
 func init() {
 	SchemeBuilder.Register(&NodeManager{}, &NodeManagerList{})
+}
+
+type CloudAWS struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=string
+	// +kubebuilder:default=aws
+	// +kubebuilder:validation:Enum=aws
+	Region string `json:"string"`
+	// +nullable
+	Masters *Masters `json:"masters,omitempty"`
+	// +nullable
+	Nodes *Nodes `json:"nodes,omitempty"`
+}
+
+type Masters struct {
+	// +kubebuilder:validation:Required
+	AutoScalingGroups []AutoScalingGroup `json:"autoScalingGroups"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=int32
+	Desired int32 `json:"desired"`
+}
+
+type Nodes struct {
+	// +kubebuilder:validation:Required
+	AutoScalingGroups []AutoScalingGroup `json:"autoScalingGroups"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=int32
+	Desired int32 `json:"desired"`
+}
+
+type AutoScalingGroup struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=string
+	Name string `json:"name"`
 }
