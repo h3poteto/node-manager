@@ -25,7 +25,7 @@ type NodeManagerSpec struct {
 	CloudProvider string `json:"cloudProvider"`
 	// +optional
 	// +nullable
-	Aws CloudAWS `json:"aws,omitempty"`
+	Aws *CloudAWS `json:"aws,omitempty"`
 }
 
 // NodeManagerStatus defines the observed state of NodeManager
