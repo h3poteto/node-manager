@@ -2,6 +2,16 @@ apiVersion: operator.h3poteto.dev/v1alpha1
 kind: NodeManager
 metadata:
   name: nodemanager-sample
+  namespace: default
 spec:
-  # Add fields here
-  foo: bar
+  cloudProvider: aws
+  aws:
+    region: ap-northeast-1
+    workers:
+      desired: 2
+      enableReplenish: true
+      scaleInWaitSeconds: 600
+      autoScalingGroups:
+        - name: nodes-ap-northeast-1a.playground.k8s.h3poteto.dev
+        - name: nodes-ap-northeast-1d.playground.k8s.h3poteto.dev
+        - name: nodes-ap-northeast-1c.playground.k8s.h3poteto.dev

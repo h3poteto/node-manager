@@ -66,7 +66,9 @@ spec:
                     - enableReplenish
                     - scaleInWaitSeconds
                     type: object
-                  nodes:
+                  region:
+                    type: string
+                  workers:
                     nullable: true
                     properties:
                       autoScalingGroups:
@@ -93,15 +95,13 @@ spec:
                     - enableReplenish
                     - scaleInWaitSeconds
                     type: object
-                  string:
-                    default: aws
-                    enum:
-                    - aws
-                    type: string
                 required:
-                - string
+                - region
                 type: object
               cloudProvider:
+                default: aws
+                enum:
+                - aws
                 type: string
             required:
             - cloudProvider

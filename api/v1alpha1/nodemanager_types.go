@@ -22,8 +22,11 @@ import (
 
 // NodeManagerSpec defines the desired state of NodeManager
 type NodeManagerSpec struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=string
+	// +kubebuilder:default=aws
+	// +kubebuilder:validation:Enum=aws
 	CloudProvider string `json:"cloudProvider"`
-	// +optional
 	// +nullable
 	Aws *CloudAWS `json:"aws,omitempty"`
 }
@@ -61,13 +64,11 @@ func init() {
 type CloudAWS struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=string
-	// +kubebuilder:default=aws
-	// +kubebuilder:validation:Enum=aws
-	Region string `json:"string"`
+	Region string `json:"region"`
 	// +nullable
 	Masters *Nodes `json:"masters,omitempty"`
 	// +nullable
-	Workers *Nodes `json:"nodes,omitempty"`
+	Workers *Nodes `json:"workers,omitempty"`
 }
 
 type Nodes struct {
