@@ -74,13 +74,13 @@ type Nodes struct {
 	// +kubebuilder:validation:Required
 	AutoScalingGroups []AutoScalingGroup `json:"autoScalingGroups"`
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type:=int32
+	// +kubebuilder:validation:Type:=integer
 	Desired int32 `json:"desired"`
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type:=int32
+	// +kubebuilder:validation:Type:=integer
 	ScaleInWaitSeconds int32 `json:"scaleInWaitSeconds"`
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type:=bool
+	// +kubebuilder:validation:Type:=boolean
 	// +kubebuilder:default=true
 	EnableReplenish bool `json:"enableReplenish"`
 }

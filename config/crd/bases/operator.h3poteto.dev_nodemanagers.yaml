@@ -53,13 +53,13 @@ spec:
                         type: array
                       desired:
                         format: int32
-                        type: int32
+                        type: integer
                       enableReplenish:
                         default: true
-                        type: bool
+                        type: boolean
                       scaleInWaitSeconds:
                         format: int32
-                        type: int32
+                        type: integer
                     required:
                     - autoScalingGroups
                     - desired
@@ -80,13 +80,13 @@ spec:
                         type: array
                       desired:
                         format: int32
-                        type: int32
+                        type: integer
                       enableReplenish:
                         default: true
-                        type: bool
+                        type: boolean
                       scaleInWaitSeconds:
                         format: int32
-                        type: int32
+                        type: integer
                     required:
                     - autoScalingGroups
                     - desired

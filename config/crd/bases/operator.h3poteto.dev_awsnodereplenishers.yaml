@@ -48,10 +48,10 @@ spec:
                 type: array
               desired:
                 format: int32
-                type: int32
+                type: integer
               scaleInWaitSeconds:
                 format: int32
-                type: int32
+                type: integer
             required:
             - autoScalingGroups
             - desired
