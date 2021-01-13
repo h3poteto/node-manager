@@ -111,8 +111,16 @@ spec:
             properties:
               masterNodeReplenisherName:
                 type: string
+              masterNodes:
+                items:
+                  type: string
+                type: array
               workerNodeReplenisherName:
                 type: string
+              workerNodes:
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

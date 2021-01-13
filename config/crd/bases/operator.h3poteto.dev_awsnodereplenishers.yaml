@@ -81,6 +81,10 @@ spec:
                   - name
                   type: object
                 type: array
+              nodes:
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

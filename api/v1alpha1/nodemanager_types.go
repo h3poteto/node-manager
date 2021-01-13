@@ -33,8 +33,10 @@ type NodeManagerSpec struct {
 
 // NodeManagerStatus defines the observed state of NodeManager
 type NodeManagerStatus struct {
-	MasterNodeReplenisherName string `json:"masterNodeReplenisherName,omitempty"`
-	WorkerNodeReplenisherName string `json:"workerNodeReplenisherName,omitempty"`
+	MasterNodeReplenisherName string   `json:"masterNodeReplenisherName,omitempty"`
+	WorkerNodeReplenisherName string   `json:"workerNodeReplenisherName,omitempty"`
+	MasterNodes               []string `json:"masterNodes,omitempty"`
+	WorkerNodes               []string `json:"workerNodes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

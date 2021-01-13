@@ -25,10 +25,12 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+)
+
+const (
+	AnnotationKey = "managed.aws-node-replenisher.operator.h3poteto.dev"
 )
 
 // AWSNodeReplenisherReconciler reconciles a AWSNodeReplenisher object
@@ -44,7 +46,17 @@ type AWSNodeReplenisherReconciler struct {
 func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnodereplenisher", req.NamespacedName)
 
-	klog.Info("reconciling for aws-node-replenisher controller")
+	klog.Info("fetching AWSNodeReplenisher resources")
+	replenisher := operatorv1alpha1.AWSNodeReplenisher{}
+	if err := r.Client.Get(ctx, req.NamespacedName, &replenisher); err != nil {
+		klog.Infof("failed to get AWSNodeReplenisher resources: %v", err)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if err := r.syncReplenisher(ctx, &replenisher); err != nil {
+		klog.Errorf("failed to sync AWSNodeReplenisher: %v", err)
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -52,6 +64,23 @@ func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeReplenisher{}).
-		Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
+}
+
+// syncReplenisher checks nodes and replenish AWS instances when node resources are not enough.
+func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
+	klog.Info("fetching Node resources")
+	list := corev1.NodeList{}
+	if err := r.Client.List(ctx, &list); err != nil {
+		klog.Errorf("failed to list Node: %v", err)
+		return err
+	}
+
+	if len(list.Items) == int(replenisher.Spec.Desired) {
+		klog.Info("nodes count is same as desired count")
+		return nil
+	}
+	klog.Infof("nodes count is %d, but desired count is %d, so adding nodes", len(list.Items), replenisher.Spec.Desired)
+	// TODO:
+	return nil
 }

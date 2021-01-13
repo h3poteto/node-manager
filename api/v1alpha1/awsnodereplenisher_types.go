@@ -34,6 +34,7 @@ type AWSNodeReplenisherSpec struct {
 
 // AWSNodeReplenisherStatus defines the observed state of AWSNodeReplenisher
 type AWSNodeReplenisherStatus struct {
+	Nodes    []string  `json:"nodes,omitempty"`
 	AWSNodes []AWSNode `json:"awsNodes,omitempty"`
 }
 
