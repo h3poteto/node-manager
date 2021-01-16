@@ -49,12 +49,18 @@ spec:
               desired:
                 format: int32
                 type: integer
+              region:
+                type: string
+              role:
+                type: string
               scaleInWaitSeconds:
                 format: int32
                 type: integer
             required:
             - autoScalingGroups
             - desired
+            - region
+            - role
             - scaleInWaitSeconds
             type: object
           status:
@@ -80,10 +86,6 @@ spec:
                   - instanceType
                   - name
                   type: object
-                type: array
-              nodes:
-                items:
-                  type: string
                 type: array
             type: object
         type: object

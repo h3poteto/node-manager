@@ -23,6 +23,9 @@ import (
 // AWSNodeReplenisherSpec defines the desired state of AWSNodeReplenisher
 type AWSNodeReplenisherSpec struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=string
+	Region string `json:"region"`
+	// +kubebuilder:validation:Required
 	AutoScalingGroups []AutoScalingGroup `json:"autoScalingGroups"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=integer
@@ -30,11 +33,13 @@ type AWSNodeReplenisherSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=integer
 	ScaleInWaitSeconds int32 `json:"scaleInWaitSeconds"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=string
+	Role NodeRole `json:"role"`
 }
 
 // AWSNodeReplenisherStatus defines the observed state of AWSNodeReplenisher
 type AWSNodeReplenisherStatus struct {
-	Nodes    []string  `json:"nodes,omitempty"`
 	AWSNodes []AWSNode `json:"awsNodes,omitempty"`
 }
 
@@ -69,3 +74,10 @@ type AWSNode struct {
 	InstanceType         string `json:"instanceType"`
 	AutoScalingGroupName string `json:"autoScalingGroupName"`
 }
+
+type NodeRole string
+
+const (
+	Master = NodeRole("master")
+	Worker = NodeRole("worker")
+)

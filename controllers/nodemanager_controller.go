@@ -20,12 +20,14 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sort"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -56,28 +58,15 @@ func (r *NodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	_ = r.Log.WithValues("nodemanager", req.NamespacedName)
 
 	nodeManager := operatorv1alpha1.NodeManager{}
-	node := corev1.Node{}
-
 	// We watch NodeManager resources and Node resources.
 	// So, the request can contains both of them.
-	var managerErr error
-	var nodeErr error
-
-	klog.Info("fetching NodeManager resources")
-	managerErr = r.Client.Get(ctx, req.NamespacedName, &nodeManager)
-	if managerErr == nil {
+	klog.Infof("fetching NodeManager resources: %s", req.NamespacedName.Name)
+	if err := r.Client.Get(ctx, req.NamespacedName, &nodeManager); err == nil {
 		err := r.syncNodeManager(ctx, &nodeManager)
 		return ctrl.Result{}, err
 	}
-	nodeErr = r.Client.Get(ctx, req.NamespacedName, &node)
-	if nodeErr == nil {
-		err := r.syncNode(ctx, &node)
-		return ctrl.Result{}, err
-	}
-
-	if managerErr != nil {
-		klog.Errorf("failed to get NodeManager resources: %v", managerErr)
-		return ctrl.Result{}, client.IgnoreNotFound(managerErr)
+	if err := r.syncNode(ctx, req.NamespacedName); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	return ctrl.Result{}, nil
@@ -126,6 +115,7 @@ func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager
 		newStatus.MasterNodes = masterNames
 		newStatus.WorkerNodes = workerNames
 		if reflect.DeepEqual(nodeManager.Status, newStatus) {
+			klog.Infof("NodeManager %q/%q is already synced", nodeManager.Namespace, nodeManager.Name)
 			return nil
 		}
 		nodeManager.Status = *newStatus
@@ -169,7 +159,12 @@ func (r *NodeManagerReconciler) syncMasterAWSNodeReplenisher(ctx context.Context
 	if nodeManager.Status.MasterNodeReplenisherName == "" || apierrors.IsNotFound(err) {
 		klog.Info("AWSNodeReplenisher for master does not exist, so create it")
 		nodeReplenisher := generateMasterAWSNodeReplenisher(nodeManager)
-		nodeReplenisher.Status.Nodes = masterNames
+		for i := range masterNames {
+			a := operatorv1alpha1.AWSNode{
+				Name: masterNames[i],
+			}
+			nodeReplenisher.Status.AWSNodes = append(nodeReplenisher.Status.AWSNodes, a)
+		}
 		if err := r.Client.Create(ctx, nodeReplenisher); err != nil {
 			return nil, err
 		}
@@ -185,12 +180,22 @@ func (r *NodeManagerReconciler) syncMasterAWSNodeReplenisher(ctx context.Context
 	}
 
 	nodeReplenisher := generateMasterAWSNodeReplenisher(nodeManager)
-	if reflect.DeepEqual(existingNodeReplenisher.Spec, nodeReplenisher.Spec) && reflect.DeepEqual(existingNodeReplenisher.Status.Nodes, nodeManager.Status.MasterNodes) {
+	var nodeNames []string
+	for _, node := range existingNodeReplenisher.Status.AWSNodes {
+		nodeNames = append(nodeNames, node.Name)
+	}
+	if reflect.DeepEqual(existingNodeReplenisher.Spec, nodeReplenisher.Spec) && reflect.DeepEqual(nodeNames, nodeManager.Status.MasterNodes) {
 		klog.Infof("AWSNodeReplenisher %q/%q is already synced", existingNodeReplenisher.Namespace, existingNodeReplenisher.Name)
 		return &existingNodeReplenisher, nil
 	}
 	existingNodeReplenisher.Spec = nodeReplenisher.Spec
-	existingNodeReplenisher.Status.Nodes = nodeManager.Status.MasterNodes
+	existingNodeReplenisher.Status.AWSNodes = []operatorv1alpha1.AWSNode{}
+	for i := range nodeManager.Status.MasterNodes {
+		a := operatorv1alpha1.AWSNode{
+			Name: nodeManager.Status.MasterNodes[i],
+		}
+		existingNodeReplenisher.Status.AWSNodes = append(existingNodeReplenisher.Status.AWSNodes, a)
+	}
 	if err := r.Client.Update(ctx, &existingNodeReplenisher); err != nil {
 		klog.Errorf("failed to update existing AWSNodeRepelnisher %q/%q : %v", existingNodeReplenisher.Namespace, existingNodeReplenisher.Name, err)
 		return nil, err
@@ -208,7 +213,12 @@ func (r *NodeManagerReconciler) syncWorkerAWSNodeReplenisher(ctx context.Context
 	if nodeManager.Status.WorkerNodeReplenisherName == "" || apierrors.IsNotFound(err) {
 		klog.Info("AWSNodeReplenisher for worker does not exist, so create it")
 		nodeReplenisher := generateWorkerAWSNodeReplenisher(nodeManager)
-		nodeReplenisher.Status.Nodes = workerNames
+		for i := range workerNames {
+			a := operatorv1alpha1.AWSNode{
+				Name: workerNames[i],
+			}
+			nodeReplenisher.Status.AWSNodes = append(nodeReplenisher.Status.AWSNodes, a)
+		}
 		if err := r.Client.Create(ctx, nodeReplenisher); err != nil {
 			klog.Errorf("failed to create AWSNodeReplenisher %q/%q: %v", nodeReplenisher.Namespace, nodeReplenisher.Name, err)
 			return nil, err
@@ -225,12 +235,22 @@ func (r *NodeManagerReconciler) syncWorkerAWSNodeReplenisher(ctx context.Context
 	}
 
 	nodeReplenisher := generateWorkerAWSNodeReplenisher(nodeManager)
-	if reflect.DeepEqual(existingNodeReplenisher.Spec, nodeReplenisher.Spec) && reflect.DeepEqual(existingNodeReplenisher.Status.Nodes, nodeManager.Status.WorkerNodes) {
+	var nodeNames []string
+	for _, node := range existingNodeReplenisher.Status.AWSNodes {
+		nodeNames = append(nodeNames, node.Name)
+	}
+	if reflect.DeepEqual(existingNodeReplenisher.Spec, nodeReplenisher.Spec) && reflect.DeepEqual(nodeNames, nodeManager.Status.WorkerNodes) {
 		klog.Infof("AWSNodeReplenisher %q/%q is already synced", existingNodeReplenisher.Namespace, existingNodeReplenisher.Name)
 		return &existingNodeReplenisher, nil
 	}
 	existingNodeReplenisher.Spec = nodeReplenisher.Spec
-	existingNodeReplenisher.Status.Nodes = nodeManager.Status.WorkerNodes
+	existingNodeReplenisher.Status.AWSNodes = []operatorv1alpha1.AWSNode{}
+	for i := range nodeManager.Status.WorkerNodes {
+		a := operatorv1alpha1.AWSNode{
+			Name: nodeManager.Status.WorkerNodes[i],
+		}
+		existingNodeReplenisher.Status.AWSNodes = append(existingNodeReplenisher.Status.AWSNodes, a)
+	}
 	if err := r.Client.Update(ctx, &existingNodeReplenisher); err != nil {
 		return nil, err
 	}
@@ -248,6 +268,8 @@ func generateMasterAWSNodeReplenisher(nodeManager *operatorv1alpha1.NodeManager)
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(nodeManager, operatorv1alpha1.GroupVersion.WithKind("NodeManager"))},
 		},
 		Spec: operatorv1alpha1.AWSNodeReplenisherSpec{
+			Region:             nodeManager.Spec.Aws.Region,
+			Role:               operatorv1alpha1.Worker,
 			AutoScalingGroups:  nodeManager.Spec.Aws.Masters.AutoScalingGroups,
 			Desired:            nodeManager.Spec.Aws.Masters.Desired,
 			ScaleInWaitSeconds: nodeManager.Spec.Aws.Masters.ScaleInWaitSeconds,
@@ -266,6 +288,8 @@ func generateWorkerAWSNodeReplenisher(nodeManager *operatorv1alpha1.NodeManager)
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(nodeManager, operatorv1alpha1.GroupVersion.WithKind("NodeManager"))},
 		},
 		Spec: operatorv1alpha1.AWSNodeReplenisherSpec{
+			Region:             nodeManager.Spec.Aws.Region,
+			Role:               operatorv1alpha1.Worker,
 			AutoScalingGroups:  nodeManager.Spec.Aws.Workers.AutoScalingGroups,
 			Desired:            nodeManager.Spec.Aws.Workers.Desired,
 			ScaleInWaitSeconds: nodeManager.Spec.Aws.Workers.ScaleInWaitSeconds,
@@ -274,7 +298,7 @@ func generateWorkerAWSNodeReplenisher(nodeManager *operatorv1alpha1.NodeManager)
 	return replenisher
 }
 
-func (r *NodeManagerReconciler) syncNode(ctx context.Context, node *corev1.Node) error {
+func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types.NamespacedName) error {
 	klog.Info("finding nodeManager resources")
 	list := operatorv1alpha1.NodeManagerList{}
 	if err := r.Client.List(ctx, &list); err != nil {
@@ -290,32 +314,62 @@ func (r *NodeManagerReconciler) syncNode(ctx context.Context, node *corev1.Node)
 	}
 	nodeManager := list.Items[0]
 
+	klog.Infof("finding %q in node resources", resourceName.Name)
+	node := &corev1.Node{}
+	if err := r.Client.Get(ctx, resourceName, node); err != nil && apierrors.IsNotFound(err) {
+		mNode := findNameInList(nodeManager.Status.MasterNodes, resourceName.Name)
+		wNode := findNameInList(nodeManager.Status.WorkerNodes, resourceName.Name)
+		if mNode == "" && wNode == "" {
+			// resource is not node
+			return err
+		}
+		// Node is deleted
+	} else if err != nil {
+		klog.Errorf("failed to get node: %v", err)
+		return err
+	}
+
+	// Node is added, updated or deleted
+	klog.Info("fetching node resources")
+	nodeList := corev1.NodeList{}
+	if err := r.Client.List(ctx, &nodeList); err != nil {
+		klog.Errorf("failed to list nodes: %v", err)
+		return err
+	}
+
+	var masterNames, workerNames []string
+	for i := range nodeList.Items {
+		if _, ok := nodeList.Items[i].Labels[NodeMasterLabel]; ok {
+			masterNames = append(masterNames, nodeList.Items[i].Name)
+			continue
+		}
+		if _, ok := nodeList.Items[i].Labels[NodeWorkerLabel]; ok {
+			workerNames = append(workerNames, nodeList.Items[i].Name)
+			continue
+		}
+		klog.Warningf("node %q does not have any node-role.kubernetes.io labels", nodeList.Items[i].Name)
+	}
+	sort.SliceStable(masterNames, func(i, j int) bool { return masterNames[i] < masterNames[j] })
+	sort.SliceStable(workerNames, func(i, j int) bool { return workerNames[i] < workerNames[j] })
+
 	klog.Infof("checking nodeManager status: %q/%q", nodeManager.Namespace, nodeManager.Name)
-	if _, ok := node.Labels[NodeMasterLabel]; ok {
-		if name := findNameInList(nodeManager.Status.MasterNodes, node.Name); name != "" {
-			klog.Infof("node %s is already included in nodeManager status", node.Name)
-			return nil
-		}
-		nodeManager.Status.MasterNodes = append(nodeManager.Status.MasterNodes, node.Name)
-		if err := r.Client.Update(ctx, &nodeManager); err != nil {
-			klog.Errorf("failed to update nodeManager %q/%q: %v", nodeManager.Namespace, nodeManager.Name, err)
-			return err
-		}
+	status := nodeManager.Status.DeepCopy()
+	sort.SliceStable(status.MasterNodes, func(i, j int) bool { return status.MasterNodes[i] < status.MasterNodes[j] })
+	sort.SliceStable(status.WorkerNodes, func(i, j int) bool { return status.WorkerNodes[i] < status.WorkerNodes[j] })
+	if reflect.DeepEqual(status.MasterNodes, masterNames) && reflect.DeepEqual(status.WorkerNodes, workerNames) {
+		klog.Info("all nodes are already synced in nodeManager status")
 		return nil
 	}
-	if _, ok := node.Labels[NodeWorkerLabel]; ok {
-		if name := findNameInList(nodeManager.Status.WorkerNodes, node.Name); name != "" {
-			klog.Infof("node %s is already included in nodeManager status", node.Name)
-			return nil
-		}
-		nodeManager.Status.WorkerNodes = append(nodeManager.Status.WorkerNodes, node.Name)
-		if err := r.Client.Update(ctx, &nodeManager); err != nil {
-			klog.Errorf("failed to update nodeManager %q/%q: %v", nodeManager.Namespace, nodeManager.Name, err)
-			return err
-		}
-		return nil
+	status.MasterNodes = masterNames
+	status.WorkerNodes = workerNames
+
+	klog.Infof("need status update, current status is %#v, node status is %#v", nodeManager.Status, *status)
+	nodeManager.Status = *status
+	if err := r.Client.Update(ctx, &nodeManager); err != nil {
+		klog.Errorf("failed to update nodeManager status %s/%s: %v", nodeManager.Namespace, nodeManager.Name, err)
+		return err
 	}
-	klog.Warningf("node %s does not have any node-role.kubernetes.io labels", node.Name)
+	klog.Infof("success to update nodeManager status %s/%s for all nodes", nodeManager.Namespace, nodeManager.Name)
 	return nil
 }
 
