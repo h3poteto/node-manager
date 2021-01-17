@@ -18,11 +18,16 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -88,9 +93,24 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 		klog.Info("nodes count is same as desired count")
 		return nil
 	}
-	klog.Infof("nodes count is %d, but desired count is %d, so adding nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
-	// TODO:
-	return nil
+
+	now := time.Now()
+	if replenisher.Status.LastUpdatedTime != nil && now.Before(replenisher.Status.LastUpdatedTime.Add(10*time.Minute)) {
+		klog.Info("Waiting cool time")
+		return nil
+	}
+
+	if len(replenisher.Status.AWSNodes) > int(replenisher.Spec.Desired) {
+		klog.Infof("nodes count is %d, but desired count is %d, so deleting nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
+	} else {
+		klog.Infof("nodes count is %d, but desired count is %d, so adding nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
+		if err := r.addNode(ctx, replenisher, int(replenisher.Spec.Desired)-len(replenisher.Status.AWSNodes)); err != nil {
+			return err
+		}
+	}
+
+	// Write last update time
+	return r.updateLatestTimestamp(ctx, replenisher, metav1.NewTime(now))
 }
 
 func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
@@ -138,6 +158,88 @@ func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, repleni
 		return err
 	}
 	klog.Infof("success to update repelnisher %s/%s", replenisher.Namespace, replenisher.Name)
+	return nil
+}
+
+func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
+	// Check desired capacity of each AutScalingGroups
+	var asgNameList []*string
+	for i := range replenisher.Spec.AutoScalingGroups {
+		asgNameList = append(asgNameList, aws.String(replenisher.Spec.AutoScalingGroups[i].Name))
+	}
+	svc := autoscaling.New(r.Session, aws.NewConfig().WithRegion(replenisher.Spec.Region))
+	input := &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: asgNameList,
+	}
+
+	output, err := svc.DescribeAutoScalingGroups(input)
+	if err != nil {
+		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
+		return err
+	}
+	sumCurrentDesired := 0
+	var asgs []*autoscaling.Group
+	// safetyASGs have same value desired capacity and current instances count.
+	var safetyASGs []*autoscaling.Group
+	for _, asg := range output.AutoScalingGroups {
+		sumCurrentDesired += int(*asg.DesiredCapacity)
+		asgs = append(asgs, asg)
+		if int(*asg.DesiredCapacity) == len(asg.Instances) {
+			safetyASGs = append(safetyASGs, asg)
+		}
+	}
+	sort.SliceStable(asgs, func(i, j int) bool {
+		return *asgs[i].DesiredCapacity < *asgs[j].DesiredCapacity
+	})
+
+	// Increment smallest desired ASG when spec desired and current desired are different.
+	if int(replenisher.Spec.Desired) != sumCurrentDesired {
+		// Smallest desired ASG
+		targetASG := asgs[0]
+		updateInput := &autoscaling.UpdateAutoScalingGroupInput{
+			AutoScalingGroupName: targetASG.AutoScalingGroupName,
+			DesiredCapacity:      aws.Int64(*targetASG.DesiredCapacity + int64(count)),
+		}
+		_, err := svc.UpdateAutoScalingGroup(updateInput)
+		if err != nil {
+			klog.Errorf("failed to update AutoScalingGroups: %v", err)
+			return err
+		}
+		klog.Infof("updated desired capacity of AutoScalingGroup %s", *targetASG.AutoScalingGroupName)
+		return nil
+	} else {
+		// Add instance in safety ASG when spec desired and current desired are same.
+		if len(safetyASGs) < 1 {
+			err := errors.New("there are no safety AutoScalingGroups, so could not add instances")
+			klog.Error(err)
+			return err
+		}
+		targetASG := safetyASGs[0]
+		updateInput := &autoscaling.UpdateAutoScalingGroupInput{
+			AutoScalingGroupName: targetASG.AutoScalingGroupName,
+			DesiredCapacity:      aws.Int64(*targetASG.DesiredCapacity + int64(count)),
+		}
+		_, err := svc.UpdateAutoScalingGroup(updateInput)
+		if err != nil {
+			klog.Errorf("failed to updateAutoScalingGroups: %v", err)
+			return err
+		}
+		klog.Infof("updated desired capacity of AutoScalingGroup %s", *targetASG.AutoScalingGroupName)
+		return nil
+	}
+
+}
+
+func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
+	return nil
+}
+
+func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
+	replenisher.Status.LastUpdatedTime = &now
+	if err := r.Client.Update(ctx, replenisher); err != nil {
+		klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+		return err
+	}
 	return nil
 }
 

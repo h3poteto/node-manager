@@ -41,6 +41,9 @@ type AWSNodeReplenisherSpec struct {
 // AWSNodeReplenisherStatus defines the observed state of AWSNodeReplenisher
 type AWSNodeReplenisherStatus struct {
 	AWSNodes []AWSNode `json:"awsNodes,omitempty"`
+	// +optinal
+	// +nullable
+	LastUpdatedTime *metav1.Time `json:"lastUpdatedTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
