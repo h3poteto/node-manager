@@ -97,7 +97,7 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 	}
 
 	now := time.Now()
-	if replenisher.Status.LastUpdatedTime != nil && now.Before(replenisher.Status.LastUpdatedTime.Add(10*time.Minute)) {
+	if replenisher.Status.LastASGModifiedTime != nil && now.Before(replenisher.Status.LastASGModifiedTime.Add(10*time.Minute)) {
 		klog.Info("Waiting cool time")
 		return nil
 	}
@@ -231,7 +231,7 @@ func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenish
 }
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
-	replenisher.Status.LastUpdatedTime = &now
+	replenisher.Status.LastASGModifiedTime = &now
 	replenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, replenisher); err != nil {
 		klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)

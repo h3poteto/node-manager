@@ -87,7 +87,7 @@ spec:
                   - name
                   type: object
                 type: array
-              lastUpdatedTime:
+              lastASGModifiedTime:
                 format: date-time
                 nullable: true
                 type: string

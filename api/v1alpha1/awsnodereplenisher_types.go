@@ -43,7 +43,7 @@ type AWSNodeReplenisherStatus struct {
 	AWSNodes []AWSNode `json:"awsNodes,omitempty"`
 	// +optinal
 	// +nullable
-	LastUpdatedTime *metav1.Time `json:"lastUpdatedTime,omitempty"`
+	LastASGModifiedTime *metav1.Time `json:"lastASGModifiedTime,omitempty"`
 	// +kubebuilder:default=0
 	Revision int64 `json:"revision"`
 }
