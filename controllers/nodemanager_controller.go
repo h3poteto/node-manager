@@ -109,21 +109,26 @@ func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager
 		if err != nil {
 			return err
 		}
-		newStatus := nodeManager.Status.DeepCopy()
-		newStatus.MasterNodeReplenisherName = masterName
-		newStatus.WorkerNodeReplenisherName = workerName
-		newStatus.MasterNodes = masterNames
-		newStatus.WorkerNodes = workerNames
-		if reflect.DeepEqual(nodeManager.Status, newStatus) {
-			klog.Infof("NodeManager %q/%q is already synced", nodeManager.Namespace, nodeManager.Name)
-			return nil
-		}
-		nodeManager.Status = *newStatus
-		if err := r.Client.Update(ctx, nodeManager); err != nil {
-			klog.Errorf("failed to update nodeManager %q/%q: %v", nodeManager.Namespace, nodeManager.Name, err)
+		nodeManager.Status.MasterNodeReplenisherName = masterName
+		nodeManager.Status.WorkerNodeReplenisherName = workerName
+		nodeManager.Status.MasterNodes = masterNames
+		nodeManager.Status.WorkerNodes = workerNames
+
+		currentNodeManager := operatorv1alpha1.NodeManager{}
+		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: nodeManager.Namespace, Name: nodeManager.Name}, &currentNodeManager); err != nil {
+			klog.Errorf("failed to get NodeManager %s/%s: %v", nodeManager.Namespace, nodeManager.Name, err)
 			return err
 		}
-		klog.Infof("updated NodeManager status %q/%q", nodeManager.Namespace, nodeManager.Name)
+		if reflect.DeepEqual(nodeManager.Status, currentNodeManager.Status) {
+			klog.Infof("NodeManager %s/%s is already synced", nodeManager.Namespace, nodeManager.Name)
+			return nil
+		}
+		currentNodeManager.Status = nodeManager.Status
+		if err := r.Client.Update(ctx, &currentNodeManager); err != nil {
+			klog.Errorf("failed to update nodeManager %q/%q: %v", currentNodeManager.Namespace, currentNodeManager.Name, err)
+			return err
+		}
+		klog.Infof("updated NodeManager status %q/%q", currentNodeManager.Namespace, currentNodeManager.Name)
 		return nil
 	default:
 		klog.Info("could not find cloud provider in NodeManager resource")
