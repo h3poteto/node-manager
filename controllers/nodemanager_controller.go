@@ -196,6 +196,7 @@ func (r *NodeManagerReconciler) syncMasterAWSNodeReplenisher(ctx context.Context
 		}
 		existingNodeReplenisher.Status.AWSNodes = append(existingNodeReplenisher.Status.AWSNodes, a)
 	}
+	existingNodeReplenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, &existingNodeReplenisher); err != nil {
 		klog.Errorf("failed to update existing AWSNodeRepelnisher %q/%q : %v", existingNodeReplenisher.Namespace, existingNodeReplenisher.Name, err)
 		return nil, err
@@ -251,6 +252,7 @@ func (r *NodeManagerReconciler) syncWorkerAWSNodeReplenisher(ctx context.Context
 		}
 		existingNodeReplenisher.Status.AWSNodes = append(existingNodeReplenisher.Status.AWSNodes, a)
 	}
+	existingNodeReplenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, &existingNodeReplenisher); err != nil {
 		return nil, err
 	}
@@ -358,9 +360,8 @@ func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types
 	sort.SliceStable(status.WorkerNodes, func(i, j int) bool { return status.WorkerNodes[i] < status.WorkerNodes[j] })
 	if reflect.DeepEqual(status.MasterNodes, masterNames) && reflect.DeepEqual(status.WorkerNodes, workerNames) {
 		klog.Info("all nodes are already synced in nodeManager status")
-		// TODO: update node replenisher.
 		// Node replenisher have to handle updating node event, because sometimes it have to check current state of instance in order to add/delete instances.
-		return nil
+		return r.updateReplenisherRevision(ctx, &nodeManager)
 	}
 	status.MasterNodes = masterNames
 	status.WorkerNodes = workerNames
@@ -372,6 +373,38 @@ func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types
 		return err
 	}
 	klog.Infof("success to update nodeManager status %s/%s for all nodes", nodeManager.Namespace, nodeManager.Name)
+	return nil
+}
+
+func (r *NodeManagerReconciler) updateReplenisherRevision(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager) error {
+	if nodeManager.Status.MasterNodeReplenisherName != "" {
+		replenisher := operatorv1alpha1.AWSNodeReplenisher{}
+		err := r.Client.Get(ctx, client.ObjectKey{Namespace: nodeManager.Namespace, Name: nodeManager.Status.MasterNodeReplenisherName}, &replenisher)
+		if err != nil {
+			klog.Errorf("failed to get node replenisher for master: %v", err)
+			return err
+		}
+		replenisher.Status.Revision += 1
+		klog.Infof("updating revision of node replenisher %s", replenisher.Name)
+		if err := r.Client.Update(ctx, &replenisher); err != nil {
+			klog.Errorf("failed to update node replenisher %s: %v", replenisher.Name, err)
+			return err
+		}
+	}
+	if nodeManager.Status.WorkerNodeReplenisherName != "" {
+		replenisher := operatorv1alpha1.AWSNodeReplenisher{}
+		err := r.Client.Get(ctx, client.ObjectKey{Namespace: nodeManager.Namespace, Name: nodeManager.Status.WorkerNodeReplenisherName}, &replenisher)
+		if err != nil {
+			klog.Errorf("failed to get node replenisher for worker: %v", err)
+			return err
+		}
+		replenisher.Status.Revision += 1
+		klog.Infof("updating revision of node replenisher %s", replenisher.Name)
+		if err := r.Client.Update(ctx, &replenisher); err != nil {
+			klog.Errorf("failed to update node replenisher %s: %v", replenisher.Name, err)
+			return err
+		}
+	}
 	return nil
 }
 

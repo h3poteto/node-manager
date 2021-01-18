@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"time"
 
@@ -152,13 +153,24 @@ func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, repleni
 		}
 		replenisher.Status.AWSNodes[i].AutoScalingGroupName = *tag.Value
 	}
-	// update replenisher status
-	klog.Infof("updating replenisher status: %s/%s", replenisher.Namespace, replenisher.Name)
-	if err := r.Client.Update(ctx, replenisher); err != nil {
-		klog.Errorf("failed to update replenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+	currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
+	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
+		klog.Errorf("failed to get AWSNodeReplenisher: %v", err)
 		return err
 	}
-	klog.Infof("success to update repelnisher %s/%s", replenisher.Namespace, replenisher.Name)
+	if reflect.DeepEqual(currentReplenisher.Status, replenisher.Status) {
+		klog.Infof("AWSNodeReplenisher %s/%s is already synced", replenisher.Namespace, replenisher.Name)
+		return nil
+	}
+	currentReplenisher.Status = replenisher.Status
+	currentReplenisher.Status.Revision += 1
+	// update replenisher status
+	klog.Infof("updating replenisher status: %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
+	if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
+		klog.Errorf("failed to update replenisher %s/%s: %v", currentReplenisher.Namespace, currentReplenisher.Name, err)
+		return err
+	}
+	klog.Infof("success to update repelnisher %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
 	return nil
 }
 
@@ -220,6 +232,7 @@ func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenish
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
 	replenisher.Status.LastUpdatedTime = &now
+	replenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, replenisher); err != nil {
 		klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
 		return err

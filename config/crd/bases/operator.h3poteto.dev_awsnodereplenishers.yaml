@@ -91,9 +91,12 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
-              nodeUpdatedTime:
-                format: date-time
-                type: string
+              revision:
+                default: 0
+                format: int64
+                type: integer
+            required:
+            - revision
             type: object
         type: object
     served: true
