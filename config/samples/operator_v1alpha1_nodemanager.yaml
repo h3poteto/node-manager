@@ -8,7 +8,7 @@ spec:
   aws:
     region: ap-northeast-1
     workers:
-      desired: 2
+      desired: 1
       enableReplenish: true
       scaleInWaitSeconds: 600
       autoScalingGroups:

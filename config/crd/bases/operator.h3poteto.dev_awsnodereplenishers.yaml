@@ -91,6 +91,9 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              nodeUpdatedTime:
+                format: date-time
+                type: string
             type: object
         type: object
     served: true

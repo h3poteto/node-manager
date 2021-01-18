@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -196,17 +197,9 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 	if int(replenisher.Spec.Desired) != sumCurrentDesired {
 		// Smallest desired ASG
 		targetASG := asgs[0]
-		updateInput := &autoscaling.UpdateAutoScalingGroupInput{
-			AutoScalingGroupName: targetASG.AutoScalingGroupName,
-			DesiredCapacity:      aws.Int64(*targetASG.DesiredCapacity + int64(count)),
-		}
-		_, err := svc.UpdateAutoScalingGroup(updateInput)
-		if err != nil {
-			klog.Errorf("failed to update AutoScalingGroups: %v", err)
-			return err
-		}
-		klog.Infof("updated desired capacity of AutoScalingGroup %s", *targetASG.AutoScalingGroupName)
-		return nil
+		newDesired := int(*targetASG.DesiredCapacity) + count
+
+		return updateASGCapacity(svc, targetASG, newDesired)
 	} else {
 		// Add instance in safety ASG when spec desired and current desired are same.
 		if len(safetyASGs) < 1 {
@@ -215,19 +208,10 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 			return err
 		}
 		targetASG := safetyASGs[0]
-		updateInput := &autoscaling.UpdateAutoScalingGroupInput{
-			AutoScalingGroupName: targetASG.AutoScalingGroupName,
-			DesiredCapacity:      aws.Int64(*targetASG.DesiredCapacity + int64(count)),
-		}
-		_, err := svc.UpdateAutoScalingGroup(updateInput)
-		if err != nil {
-			klog.Errorf("failed to updateAutoScalingGroups: %v", err)
-			return err
-		}
-		klog.Infof("updated desired capacity of AutoScalingGroup %s", *targetASG.AutoScalingGroupName)
-		return nil
-	}
+		newDesired := int(*targetASG.DesiredCapacity) + count
 
+		return updateASGCapacity(svc, targetASG, newDesired)
+	}
 }
 
 func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
@@ -249,5 +233,28 @@ func findTag(tags []*ec2.Tag, key string) *ec2.Tag {
 			return tags[i]
 		}
 	}
+	return nil
+}
+
+func updateASGCapacity(client *autoscaling.AutoScaling, asg *autoscaling.Group, newDesired int) error {
+	if newDesired > int(*asg.MaxSize) {
+		klog.Warningf("AutoScalingGroup %s has reached capacity limit, new desired: %d, but max: %d, so reduce new desired", *asg.AutoScalingGroupName, newDesired, *asg.MaxSize)
+		newDesired = int(*asg.MaxSize)
+	}
+	if newDesired == int(*asg.DesiredCapacity) {
+		err := fmt.Errorf("AutoScalingGroup %s has already fullfilled, so could not update desired capacity", *asg.AutoScalingGroupName)
+		klog.Error(err)
+		return err
+	}
+	updateInput := &autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: asg.AutoScalingGroupName,
+		DesiredCapacity:      aws.Int64(int64(newDesired)),
+	}
+	_, err := client.UpdateAutoScalingGroup(updateInput)
+	if err != nil {
+		klog.Errorf("failed to update AutoScalingGroups: %v", err)
+		return err
+	}
+	klog.Infof("updated desired capacity of AutoScalingGroup %s", *asg.AutoScalingGroupName)
 	return nil
 }

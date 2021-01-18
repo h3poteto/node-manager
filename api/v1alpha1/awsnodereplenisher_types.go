@@ -44,6 +44,8 @@ type AWSNodeReplenisherStatus struct {
 	// +optinal
 	// +nullable
 	LastUpdatedTime *metav1.Time `json:"lastUpdatedTime,omitempty"`
+	// +optional
+	NodeUpdatedTime *metav1.Time `json:"nodeUpdatedTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true

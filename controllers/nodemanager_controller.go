@@ -358,6 +358,8 @@ func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types
 	sort.SliceStable(status.WorkerNodes, func(i, j int) bool { return status.WorkerNodes[i] < status.WorkerNodes[j] })
 	if reflect.DeepEqual(status.MasterNodes, masterNames) && reflect.DeepEqual(status.WorkerNodes, workerNames) {
 		klog.Info("all nodes are already synced in nodeManager status")
+		// TODO: update node replenisher.
+		// Node replenisher have to handle updating node event, because sometimes it have to check current state of instance in order to add/delete instances.
 		return nil
 	}
 	status.MasterNodes = masterNames
