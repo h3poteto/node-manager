@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
-	"github.com/h3poteto/node-manager/controllers"
+	"github.com/h3poteto/node-manager/pkg/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
