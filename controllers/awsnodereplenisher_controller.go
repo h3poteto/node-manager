@@ -208,6 +208,9 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 	sort.SliceStable(asgs, func(i, j int) bool {
 		return *asgs[i].DesiredCapacity < *asgs[j].DesiredCapacity
 	})
+	sort.SliceStable(safetyASGs, func(i, j int) bool {
+		return (*safetyASGs[i].MaxSize - *safetyASGs[i].DesiredCapacity) > (*safetyASGs[j].MaxSize - *safetyASGs[j].DesiredCapacity)
+	})
 
 	// Increment smallest desired ASG when spec desired and current desired are different.
 	if int(replenisher.Spec.Desired) != sumCurrentDesired {
