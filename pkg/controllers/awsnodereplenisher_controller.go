@@ -18,16 +18,10 @@ package controllers
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"reflect"
-	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 )
 
 const (
@@ -118,43 +113,11 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 }
 
 func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	for i, node := range replenisher.Status.AWSNodes {
-		if node.InstanceID != "" {
-			continue
-		}
-		svc := ec2.New(r.Session, aws.NewConfig().WithRegion(replenisher.Spec.Region))
-		input := &ec2.DescribeInstancesInput{
-			DryRun: nil,
-			Filters: []*ec2.Filter{
-				{
-					Name: aws.String("private-dns-name"),
-					Values: []*string{
-						aws.String(node.Name),
-					},
-				},
-			},
-		}
-		output, err := svc.DescribeInstances(input)
-		if err != nil {
-			klog.Errorf("failed to describe aws instances: %v", err)
-			return err
-		}
-		if len(output.Reservations) < 1 || len(output.Reservations[0].Instances) < 1 {
-			klog.Warningf("could not find aws instance %s", node.Name)
-			continue
-		}
-		instance := output.Reservations[0].Instances[0]
-		replenisher.Status.AWSNodes[i].InstanceID = *instance.InstanceId
-		replenisher.Status.AWSNodes[i].InstanceType = *instance.InstanceType
-		replenisher.Status.AWSNodes[i].AvailabilityZone = *instance.Placement.AvailabilityZone
-		// Normally auto scaling group name is filled in name tag of instances.
-		tag := findTag(instance.Tags, "Name")
-		if tag == nil {
-			klog.Warningf("could not find Name tag in aws instance %s", *instance.InstanceId)
-			continue
-		}
-		replenisher.Status.AWSNodes[i].AutoScalingGroupName = *tag.Value
+	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
+	if err := cloud.GetInstancesInformation(replenisher); err != nil {
+		return err
 	}
+
 	currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
 		klog.Errorf("failed to get AWSNodeReplenisher: %v", err)
@@ -180,58 +143,8 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
 		return err
 	}
-
-	// Check desired capacity of each AutScalingGroups
-	var asgNameList []*string
-	for i := range replenisher.Spec.AutoScalingGroups {
-		asgNameList = append(asgNameList, aws.String(replenisher.Spec.AutoScalingGroups[i].Name))
-	}
-	svc := autoscaling.New(r.Session, aws.NewConfig().WithRegion(replenisher.Spec.Region))
-	input := &autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: asgNameList,
-	}
-	output, err := svc.DescribeAutoScalingGroups(input)
-	if err != nil {
-		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
-		return err
-	}
-	sumCurrentDesired := 0
-	var asgs []*autoscaling.Group
-	// safetyASGs have same value desired capacity and current instances count.
-	var safetyASGs []*autoscaling.Group
-	for _, asg := range output.AutoScalingGroups {
-		sumCurrentDesired += int(*asg.DesiredCapacity)
-		asgs = append(asgs, asg)
-		if int(*asg.DesiredCapacity) == len(asg.Instances) {
-			safetyASGs = append(safetyASGs, asg)
-		}
-	}
-	sort.SliceStable(asgs, func(i, j int) bool {
-		return (*asgs[i].MaxSize - *asgs[i].DesiredCapacity) > (*asgs[j].MaxSize - *asgs[j].DesiredCapacity)
-	})
-	sort.SliceStable(safetyASGs, func(i, j int) bool {
-		return (*safetyASGs[i].MaxSize - *safetyASGs[i].DesiredCapacity) > (*safetyASGs[j].MaxSize - *safetyASGs[j].DesiredCapacity)
-	})
-
-	// Increment smallest desired ASG when spec desired and current desired are different.
-	if int(replenisher.Spec.Desired) != sumCurrentDesired {
-		// Smallest desired ASG
-		targetASG := asgs[0]
-		newDesired := int(*targetASG.DesiredCapacity) + count
-		klog.Infof("spec desired is %d, and current ASG desired is %d, so increment desired capacity of smallest ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
-		return updateASGCapacity(svc, targetASG, newDesired)
-	} else {
-		// Add instance in safety ASG when spec desired and current desired are same.
-		if len(safetyASGs) < 1 {
-			err := errors.New("there are no safety AutoScalingGroups, so could not add instances")
-			klog.Error(err)
-			return err
-		}
-		targetASG := safetyASGs[0]
-		newDesired := int(*targetASG.DesiredCapacity) + count
-		klog.Infof("spec desired is %d, and current ASG desired is %d, so increment desired capacity of safety ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
-		return updateASGCapacity(svc, targetASG, newDesired)
-	}
+	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
+	return cloud.AddInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), count)
 }
 
 func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
@@ -239,56 +152,8 @@ func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenish
 		return err
 	}
 
-	// Check desired capacity of each AutScalingGroups
-	var asgNameList []*string
-	for i := range replenisher.Spec.AutoScalingGroups {
-		asgNameList = append(asgNameList, aws.String(replenisher.Spec.AutoScalingGroups[i].Name))
-	}
-	svc := autoscaling.New(r.Session, aws.NewConfig().WithRegion(replenisher.Spec.Region))
-	input := &autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: asgNameList,
-	}
-	output, err := svc.DescribeAutoScalingGroups(input)
-	if err != nil {
-		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
-		return err
-	}
-	sumCurrentDesired := 0
-	var safetyASGs []*autoscaling.Group
-	// unsafetyASGs have different value desired capacity and current instances count.
-	var unsafetyASGs []*autoscaling.Group
-	for _, asg := range output.AutoScalingGroups {
-		sumCurrentDesired += int(*asg.DesiredCapacity)
-		if int(*asg.DesiredCapacity) != len(asg.Instances) {
-			unsafetyASGs = append(unsafetyASGs, asg)
-		} else {
-			safetyASGs = append(safetyASGs, asg)
-		}
-	}
-	sort.SliceStable(safetyASGs, func(i, j int) bool {
-		return (*safetyASGs[i].DesiredCapacity - *safetyASGs[i].MinSize) > (*safetyASGs[j].DesiredCapacity - *safetyASGs[j].MinSize)
-	})
-	sort.SliceStable(unsafetyASGs, func(i, j int) bool {
-		return (*unsafetyASGs[i].DesiredCapacity - *unsafetyASGs[i].MinSize) > (*unsafetyASGs[j].DesiredCapacity - *unsafetyASGs[j].MinSize)
-	})
-
-	if len(unsafetyASGs) > 0 {
-		targetASG := unsafetyASGs[0]
-		newDesired := len(targetASG.Instances)
-		klog.Infof("there is invalid AutoScalingGroup %s, so decrement desired count: %d", *targetASG.AutoScalingGroupName, newDesired)
-		_ = updateASGCapacity(svc, targetASG, newDesired)
-	}
-
-	// Decrement largest desired ASG
-	if len(safetyASGs) < 1 {
-		err := errors.New("there are no AutoScalingGroups, so could not delete instances")
-		klog.Error(err)
-		return err
-	}
-	targetASG := safetyASGs[0]
-	newDesired := int(*targetASG.DesiredCapacity) - count
-	klog.Infof("spec desired is %d, and current ASG desired is %d, so decrement desired capacity of largest ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
-	return updateASGCapacity(svc, targetASG, newDesired)
+	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
+	return cloud.DeleteInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), count)
 }
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
@@ -349,45 +214,4 @@ func (r *AWSNodeReplenisherReconciler) updateStatusAWSUpdating(ctx context.Conte
 		}
 		return nil
 	})
-}
-
-func findTag(tags []*ec2.Tag, key string) *ec2.Tag {
-	for i := range tags {
-		if *tags[i].Key == key {
-			return tags[i]
-		}
-	}
-	return nil
-}
-
-func updateASGCapacity(client *autoscaling.AutoScaling, asg *autoscaling.Group, newDesired int) error {
-	if newDesired > int(*asg.MaxSize) {
-		klog.Warningf("AutoScalingGroup %s has reached capacity limit, new desired: %d, but max: %d, so reduce new desired", *asg.AutoScalingGroupName, newDesired, *asg.MaxSize)
-		newDesired = int(*asg.MaxSize)
-	}
-	if newDesired == int(*asg.DesiredCapacity) {
-		err := fmt.Errorf("AutoScalingGroup %s has already fullfilled, so could not update desired capacity", *asg.AutoScalingGroupName)
-		klog.Error(err)
-		return err
-	}
-	if newDesired < int(*asg.MinSize) {
-		klog.Warningf("AutoScalingGroup %s has reached capacity minimize, new desired: %d, but min: %d so increase new desired", *asg.AutoScalingGroupName, newDesired, *asg.MinSize)
-		newDesired = int(*asg.MinSize)
-	}
-	if newDesired == int(*asg.DesiredCapacity) {
-		err := fmt.Errorf("AutoScalingGroup %s has already minimized, so could not update desired capacity", *asg.AutoScalingGroupName)
-		klog.Error(err)
-		return err
-	}
-	updateInput := &autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: asg.AutoScalingGroupName,
-		DesiredCapacity:      aws.Int64(int64(newDesired)),
-	}
-	_, err := client.UpdateAutoScalingGroup(updateInput)
-	if err != nil {
-		klog.Errorf("failed to update AutoScalingGroups: %v", err)
-		return err
-	}
-	klog.Infof("updated desired capacity of AutoScalingGroup %s", *asg.AutoScalingGroupName)
-	return nil
 }
