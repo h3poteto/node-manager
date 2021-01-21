@@ -105,7 +105,9 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 
 	if len(replenisher.Status.AWSNodes) > int(replenisher.Spec.Desired) {
 		klog.Infof("nodes count is %d, but desired count is %d, so deleting nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
-		// TODO: deleting
+		if err := r.deleteNode(ctx, replenisher, len(replenisher.Status.AWSNodes)-int(replenisher.Spec.Desired)); err != nil {
+			return err
+		}
 	} else {
 		klog.Infof("nodes count is %d, but desired count is %d, so adding nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
 		if err := r.addNode(ctx, replenisher, int(replenisher.Spec.Desired)-len(replenisher.Status.AWSNodes)); err != nil {
@@ -188,7 +190,6 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: asgNameList,
 	}
-
 	output, err := svc.DescribeAutoScalingGroups(input)
 	if err != nil {
 		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
@@ -234,7 +235,50 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 }
 
 func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
-	return nil
+	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
+		return err
+	}
+
+	// Check desired capacity of each AutScalingGroups
+	var asgNameList []*string
+	for i := range replenisher.Spec.AutoScalingGroups {
+		asgNameList = append(asgNameList, aws.String(replenisher.Spec.AutoScalingGroups[i].Name))
+	}
+	svc := autoscaling.New(r.Session, aws.NewConfig().WithRegion(replenisher.Spec.Region))
+	input := &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: asgNameList,
+	}
+	output, err := svc.DescribeAutoScalingGroups(input)
+	if err != nil {
+		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
+		return err
+	}
+	sumCurrentDesired := 0
+	var asgs []*autoscaling.Group
+	for _, asg := range output.AutoScalingGroups {
+		sumCurrentDesired += int(*asg.DesiredCapacity)
+		asgs = append(asgs, asg)
+	}
+	sort.SliceStable(asgs, func(i, j int) bool {
+		return *asgs[i].DesiredCapacity > *asgs[j].DesiredCapacity
+	})
+
+	// Decrement largest desired ASG
+	if len(asgs) < 1 {
+		err := errors.New("there are no AutoScalingGroups, so could not delete instances")
+		klog.Error(err)
+		return err
+	}
+	targetASG := asgs[0]
+	newDesired := int(*targetASG.DesiredCapacity) - count
+	if newDesired < 0 {
+		// TODO: https://github.com/h3poteto/node-manager/issues/5
+		err := errors.New("new desired is not positive value")
+		klog.Error(err)
+		return err
+	}
+	klog.Infof("spec desired is %d, and current ASG desired is %d, so decrement desired capacity of largest ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
+	return updateASGCapacity(svc, targetASG, newDesired)
 }
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
