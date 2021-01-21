@@ -93,7 +93,9 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 	}
 
 	now := time.Now()
-	if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating && replenisher.Status.LastASGModifiedTime != nil && now.Before(replenisher.Status.LastASGModifiedTime.Add(10*time.Minute)) {
+	if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating &&
+		replenisher.Status.LastASGModifiedTime != nil &&
+		now.Before(replenisher.Status.LastASGModifiedTime.Add(time.Duration(replenisher.Spec.ASGModifyCoolTimeSeconds)*time.Second)) {
 		klog.Info("Waiting cool time")
 		return nil
 	}

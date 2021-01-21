@@ -37,6 +37,9 @@ spec:
           spec:
             description: AWSNodeReplenisherSpec defines the desired state of AWSNodeReplenisher
             properties:
+              asgModfyCoolTimeSeconds:
+                format: int64
+                type: integer
               autoScalingGroups:
                 items:
                   properties:
@@ -53,15 +56,12 @@ spec:
                 type: string
               role:
                 type: string
-              scaleInWaitSeconds:
-                format: int32
-                type: integer
             required:
+            - asgModfyCoolTimeSeconds
             - autoScalingGroups
             - desired
             - region
             - role
-            - scaleInWaitSeconds
             type: object
           status:
             description: AWSNodeReplenisherStatus defines the observed state of AWSNodeReplenisher

@@ -10,7 +10,7 @@ spec:
     workers:
       desired: 2
       enableReplenish: true
-      scaleInWaitSeconds: 600
+      asgModfyCoolTimeSeconds: 600
       autoScalingGroups:
         - name: nodes-ap-northeast-1a.playground.k8s.h3poteto.dev
         - name: nodes-ap-northeast-1d.playground.k8s.h3poteto.dev
