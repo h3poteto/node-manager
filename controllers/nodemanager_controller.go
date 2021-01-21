@@ -259,6 +259,7 @@ func (r *NodeManagerReconciler) syncWorkerAWSNodeReplenisher(ctx context.Context
 	}
 	existingNodeReplenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, &existingNodeReplenisher); err != nil {
+		klog.Errorf("failed to update AWSNodeReplenisher %s/%s: %v", existingNodeReplenisher.Namespace, existingNodeReplenisher.Name, err)
 		return nil, err
 	}
 	klog.Infof("updated AWSNodeReplenisher spec for worker %q/%q", existingNodeReplenisher.Namespace, existingNodeReplenisher.Name)

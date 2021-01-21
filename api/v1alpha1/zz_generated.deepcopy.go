@@ -126,8 +126,8 @@ func (in *AWSNodeReplenisherStatus) DeepCopyInto(out *AWSNodeReplenisherStatus) 
 		*out = make([]AWSNode, len(*in))
 		copy(*out, *in)
 	}
-	if in.LastUpdatedTime != nil {
-		in, out := &in.LastUpdatedTime, &out.LastUpdatedTime
+	if in.LastASGModifiedTime != nil {
+		in, out := &in.LastASGModifiedTime, &out.LastASGModifiedTime
 		*out = (*in).DeepCopy()
 	}
 }

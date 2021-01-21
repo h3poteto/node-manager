@@ -87,15 +87,19 @@ spec:
                   - name
                   type: object
                 type: array
-              lastUpdatedTime:
+              lastASGModifiedTime:
                 format: date-time
                 nullable: true
+                type: string
+              phase:
+                default: init
                 type: string
               revision:
                 default: 0
                 format: int64
                 type: integer
             required:
+            - phase
             - revision
             type: object
         type: object

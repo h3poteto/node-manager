@@ -31,6 +31,7 @@ import (
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -93,26 +94,25 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 
 	if len(replenisher.Status.AWSNodes) == int(replenisher.Spec.Desired) {
 		klog.Info("nodes count is same as desired count")
-		return nil
+		return r.updateStatusSynced(ctx, replenisher)
 	}
 
 	now := time.Now()
-	if replenisher.Status.LastUpdatedTime != nil && now.Before(replenisher.Status.LastUpdatedTime.Add(10*time.Minute)) {
+	if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating && replenisher.Status.LastASGModifiedTime != nil && now.Before(replenisher.Status.LastASGModifiedTime.Add(10*time.Minute)) {
 		klog.Info("Waiting cool time")
 		return nil
 	}
 
 	if len(replenisher.Status.AWSNodes) > int(replenisher.Spec.Desired) {
 		klog.Infof("nodes count is %d, but desired count is %d, so deleting nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
+		// TODO: deleting
 	} else {
 		klog.Infof("nodes count is %d, but desired count is %d, so adding nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
 		if err := r.addNode(ctx, replenisher, int(replenisher.Spec.Desired)-len(replenisher.Status.AWSNodes)); err != nil {
 			return err
 		}
 	}
-
-	// Write last update time
-	return r.updateLatestTimestamp(ctx, replenisher, metav1.NewTime(now))
+	return nil
 }
 
 func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
@@ -175,6 +175,10 @@ func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, repleni
 }
 
 func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
+	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
+		return err
+	}
+
 	// Check desired capacity of each AutScalingGroups
 	var asgNameList []*string
 	for i := range replenisher.Spec.AutoScalingGroups {
@@ -210,7 +214,7 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 		// Smallest desired ASG
 		targetASG := asgs[0]
 		newDesired := int(*targetASG.DesiredCapacity) + count
-
+		klog.Infof("spec desired is %d, and current ASG desired is %d, so increment desired capacity of smallest ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
 		return updateASGCapacity(svc, targetASG, newDesired)
 	} else {
 		// Add instance in safety ASG when spec desired and current desired are same.
@@ -221,7 +225,7 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 		}
 		targetASG := safetyASGs[0]
 		newDesired := int(*targetASG.DesiredCapacity) + count
-
+		klog.Infof("spec desired is %d, and current ASG desired is %d, so increment desired capacity of safety ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
 		return updateASGCapacity(svc, targetASG, newDesired)
 	}
 }
@@ -231,13 +235,63 @@ func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenish
 }
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
-	replenisher.Status.LastUpdatedTime = &now
-	replenisher.Status.Revision += 1
-	if err := r.Client.Update(ctx, replenisher); err != nil {
-		klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-		return err
-	}
-	return nil
+	// We have to retry when this update function is failed.
+	// If we don't update LastASGModifiedTime after modify some ASGs,
+	// the next process in reconcile will add/delete instances without wait.
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
+		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
+			klog.Errorf("failed to get AWSNodeReplenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+			return err
+		}
+		currentReplenisher.Status.LastASGModifiedTime = &now
+		currentReplenisher.Status.Revision += 1
+		if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
+			klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+			return err
+		}
+		return nil
+	})
+}
+
+func (r *AWSNodeReplenisherReconciler) updateStatusSynced(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
+		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
+			klog.Errorf("failed to get AWSNodeReplenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+			return err
+		}
+		if currentReplenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherSynced {
+			klog.Infof("AWSNodeReplenisher %s/%s is already synced", currentReplenisher.Namespace, currentReplenisher.Name)
+			return nil
+		}
+		currentReplenisher.Status.Phase = operatorv1alpha1.AWSNodeReplenisherSynced
+		currentReplenisher.Status.Revision += 1
+		if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
+			klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+			return err
+		}
+		return nil
+	})
+}
+
+func (r *AWSNodeReplenisherReconciler) updateStatusAWSUpdating(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
+	now := metav1.Now()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
+		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
+			klog.Errorf("failed to get AWSNodeReplenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+			return err
+		}
+		currentReplenisher.Status.Phase = operatorv1alpha1.AWSNodeReplenisherAWSUpdating
+		currentReplenisher.Status.LastASGModifiedTime = &now
+		currentReplenisher.Status.Revision += 1
+		if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
+			klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
+			return err
+		}
+		return nil
+	})
 }
 
 func findTag(tags []*ec2.Tag, key string) *ec2.Tag {
