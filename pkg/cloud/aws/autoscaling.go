@@ -61,7 +61,7 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 	}
 	klog.Infof("spec desired is %d, and current ASGs desired is %d, so increase desired capacity for all ASGs", totalDesired, sumASGDesired)
 	if surplus > 0 {
-		klog.Warningf("all ASGs is already fullfilled so could nod add %d instances", surplus)
+		klog.Warningf("all ASGs is already fullfilled so could not add %d instances", surplus)
 	}
 	return updateASGsDesired(a.autoscaling, safetyASGs)
 }
@@ -80,21 +80,19 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
 		return err
 	}
-	sumCurrentDesired := 0
+
+	sumASGDesired := 0
 	var safetyASGs []*autoscaling.Group
 	// unsafetyASGs have different value desired capacity and current instances count.
 	var unsafetyASGs []*autoscaling.Group
 	for _, asg := range output.AutoScalingGroups {
-		sumCurrentDesired += int(*asg.DesiredCapacity)
+		sumASGDesired += int(*asg.DesiredCapacity)
 		if int(*asg.DesiredCapacity) != len(asg.Instances) {
 			unsafetyASGs = append(unsafetyASGs, asg)
 		} else {
 			safetyASGs = append(safetyASGs, asg)
 		}
 	}
-	sort.SliceStable(safetyASGs, func(i, j int) bool {
-		return (*safetyASGs[i].DesiredCapacity - *safetyASGs[i].MinSize) > (*safetyASGs[j].DesiredCapacity - *safetyASGs[j].MinSize)
-	})
 	sort.SliceStable(unsafetyASGs, func(i, j int) bool {
 		return (*unsafetyASGs[i].DesiredCapacity - *unsafetyASGs[i].MinSize) > (*unsafetyASGs[j].DesiredCapacity - *unsafetyASGs[j].MinSize)
 	})
@@ -106,16 +104,35 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 		_ = updateASGCapacity(a.autoscaling, targetASG, newDesired)
 	}
 
-	// Decrement largest desired ASG
 	if len(safetyASGs) < 1 {
-		err := errors.New("there are no AutoScalingGroups, so could not delete instances")
+		err := errors.New("there are no safety AutoScalingGroups, so could not delete instances")
 		klog.Error(err)
 		return err
 	}
-	targetASG := safetyASGs[0]
-	newDesired := int(*targetASG.DesiredCapacity) - count
-	klog.Infof("spec desired is %d, and current ASG desired is %d, so decrement desired capacity of largest ASG: %s", totalDesired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
-	return updateASGCapacity(a.autoscaling, targetASG, newDesired)
+
+	sort.SliceStable(safetyASGs, func(i, j int) bool {
+		return (*safetyASGs[i].DesiredCapacity - *safetyASGs[i].MinSize) > (*safetyASGs[j].DesiredCapacity - *safetyASGs[j].MinSize)
+	})
+
+	// Decrease desired capacity equally across all ASGs.
+	surplus := count
+	for surplus > 0 {
+		// Exit this loop when all ASGs capacity is minimized.
+		if minimized := allASGIsMinimized(safetyASGs); minimized {
+			break
+		}
+		for j := range safetyASGs {
+			if int(*safetyASGs[j].DesiredCapacity-*safetyASGs[j].MinSize) > 0 {
+				*safetyASGs[j].DesiredCapacity -= 1
+				surplus--
+			}
+		}
+	}
+	klog.Infof("spec desired is %d, and current ASG desired is %d, so decrement desired capacity for all ASGs", totalDesired, sumASGDesired)
+	if surplus > 0 {
+		klog.Warningf("all ASGs is already minimized so could not delete %d instances", surplus)
+	}
+	return updateASGsDesired(a.autoscaling, safetyASGs)
 }
 
 func updateASGsDesired(client *autoscaling.AutoScaling, asgs []*autoscaling.Group) error {
@@ -156,6 +173,15 @@ func updateASGCapacity(client *autoscaling.AutoScaling, asg *autoscaling.Group, 
 func allASGIsFullfilled(asgs []*autoscaling.Group) bool {
 	for i := range asgs {
 		if int(*asgs[i].MaxSize-*asgs[i].DesiredCapacity) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func allASGIsMinimized(asgs []*autoscaling.Group) bool {
+	for i := range asgs {
+		if int(*asgs[i].DesiredCapacity-*asgs[i].MinSize) > 0 {
 			return false
 		}
 	}
