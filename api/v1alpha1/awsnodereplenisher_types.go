@@ -46,6 +46,8 @@ type AWSNodeReplenisherStatus struct {
 	LastASGModifiedTime *metav1.Time `json:"lastASGModifiedTime,omitempty"`
 	// +kubebuilder:default=0
 	Revision int64 `json:"revision"`
+	// +kubebuilder:default=init
+	Phase AWSNodeReplenisherPhase `json:"phase"`
 }
 
 // +kubebuilder:object:root=true
@@ -85,4 +87,12 @@ type NodeRole string
 const (
 	Master = NodeRole("master")
 	Worker = NodeRole("worker")
+)
+
+type AWSNodeReplenisherPhase string
+
+const (
+	AWSNodeReplenisherInit        = AWSNodeReplenisherPhase("init")
+	AWSNodeReplenisherSynced      = AWSNodeReplenisherPhase("synced")
+	AWSNodeReplenisherAWSUpdating = AWSNodeReplenisherPhase("awsUpdating")
 )
