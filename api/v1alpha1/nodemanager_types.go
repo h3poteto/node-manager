@@ -81,7 +81,7 @@ type Nodes struct {
 	Desired int32 `json:"desired"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=integer
-	ScaleInWaitSeconds int32 `json:"scaleInWaitSeconds"`
+	ASGModifyCoolTimeSeconds int64 `json:"asgModfyCoolTimeSeconds"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=boolean
 	// +kubebuilder:default=true

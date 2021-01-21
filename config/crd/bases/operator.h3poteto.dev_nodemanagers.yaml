@@ -42,6 +42,9 @@ spec:
                   masters:
                     nullable: true
                     properties:
+                      asgModfyCoolTimeSeconds:
+                        format: int64
+                        type: integer
                       autoScalingGroups:
                         items:
                           properties:
@@ -57,20 +60,20 @@ spec:
                       enableReplenish:
                         default: true
                         type: boolean
-                      scaleInWaitSeconds:
-                        format: int32
-                        type: integer
                     required:
+                    - asgModfyCoolTimeSeconds
                     - autoScalingGroups
                     - desired
                     - enableReplenish
-                    - scaleInWaitSeconds
                     type: object
                   region:
                     type: string
                   workers:
                     nullable: true
                     properties:
+                      asgModfyCoolTimeSeconds:
+                        format: int64
+                        type: integer
                       autoScalingGroups:
                         items:
                           properties:
@@ -86,14 +89,11 @@ spec:
                       enableReplenish:
                         default: true
                         type: boolean
-                      scaleInWaitSeconds:
-                        format: int32
-                        type: integer
                     required:
+                    - asgModfyCoolTimeSeconds
                     - autoScalingGroups
                     - desired
                     - enableReplenish
-                    - scaleInWaitSeconds
                     type: object
                 required:
                 - region

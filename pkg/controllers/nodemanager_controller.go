@@ -276,11 +276,11 @@ func generateMasterAWSNodeReplenisher(nodeManager *operatorv1alpha1.NodeManager)
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(nodeManager, operatorv1alpha1.GroupVersion.WithKind("NodeManager"))},
 		},
 		Spec: operatorv1alpha1.AWSNodeReplenisherSpec{
-			Region:             nodeManager.Spec.Aws.Region,
-			Role:               operatorv1alpha1.Worker,
-			AutoScalingGroups:  nodeManager.Spec.Aws.Masters.AutoScalingGroups,
-			Desired:            nodeManager.Spec.Aws.Masters.Desired,
-			ScaleInWaitSeconds: nodeManager.Spec.Aws.Masters.ScaleInWaitSeconds,
+			Region:                   nodeManager.Spec.Aws.Region,
+			Role:                     operatorv1alpha1.Worker,
+			AutoScalingGroups:        nodeManager.Spec.Aws.Masters.AutoScalingGroups,
+			Desired:                  nodeManager.Spec.Aws.Masters.Desired,
+			ASGModifyCoolTimeSeconds: nodeManager.Spec.Aws.Masters.ASGModifyCoolTimeSeconds,
 		},
 	}
 	return replenisher
@@ -296,11 +296,11 @@ func generateWorkerAWSNodeReplenisher(nodeManager *operatorv1alpha1.NodeManager)
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(nodeManager, operatorv1alpha1.GroupVersion.WithKind("NodeManager"))},
 		},
 		Spec: operatorv1alpha1.AWSNodeReplenisherSpec{
-			Region:             nodeManager.Spec.Aws.Region,
-			Role:               operatorv1alpha1.Worker,
-			AutoScalingGroups:  nodeManager.Spec.Aws.Workers.AutoScalingGroups,
-			Desired:            nodeManager.Spec.Aws.Workers.Desired,
-			ScaleInWaitSeconds: nodeManager.Spec.Aws.Workers.ScaleInWaitSeconds,
+			Region:                   nodeManager.Spec.Aws.Region,
+			Role:                     operatorv1alpha1.Worker,
+			AutoScalingGroups:        nodeManager.Spec.Aws.Workers.AutoScalingGroups,
+			Desired:                  nodeManager.Spec.Aws.Workers.Desired,
+			ASGModifyCoolTimeSeconds: nodeManager.Spec.Aws.Workers.ASGModifyCoolTimeSeconds,
 		},
 	}
 	return replenisher

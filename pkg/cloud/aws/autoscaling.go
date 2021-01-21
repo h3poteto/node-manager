@@ -63,7 +63,7 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 	if surplus > 0 {
 		klog.Warningf("all ASGs is already fullfilled so could not add %d instances", surplus)
 	}
-	return updateASGsDesired(a.autoscaling, safetyASGs)
+	return a.updateASGsDesired(safetyASGs)
 }
 
 func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, count int) error {
@@ -101,7 +101,7 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 		targetASG := unsafetyASGs[0]
 		newDesired := len(targetASG.Instances)
 		klog.Infof("there is invalid AutoScalingGroup %s, so decrement desired count: %d", *targetASG.AutoScalingGroupName, newDesired)
-		_ = updateASGCapacity(a.autoscaling, targetASG, newDesired)
+		_ = a.updateASGCapacity(targetASG, newDesired)
 	}
 
 	if len(safetyASGs) < 1 {
@@ -132,13 +132,13 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 	if surplus > 0 {
 		klog.Warningf("all ASGs is already minimized so could not delete %d instances", surplus)
 	}
-	return updateASGsDesired(a.autoscaling, safetyASGs)
+	return a.updateASGsDesired(safetyASGs)
 }
 
-func updateASGsDesired(client *autoscaling.AutoScaling, asgs []*autoscaling.Group) error {
+func (a *AWS) updateASGsDesired(asgs []*autoscaling.Group) error {
 	var err []error
 	for i := range asgs {
-		if e := updateASGCapacity(client, asgs[i], int(*asgs[i].DesiredCapacity)); e != nil {
+		if e := a.updateASGCapacity(asgs[i], int(*asgs[i].DesiredCapacity)); e != nil {
 			err = append(err, e)
 		}
 	}
@@ -148,7 +148,7 @@ func updateASGsDesired(client *autoscaling.AutoScaling, asgs []*autoscaling.Grou
 	return nil
 }
 
-func updateASGCapacity(client *autoscaling.AutoScaling, asg *autoscaling.Group, newDesired int) error {
+func (a *AWS) updateASGCapacity(asg *autoscaling.Group, newDesired int) error {
 	if newDesired > int(*asg.MaxSize) {
 		klog.Warningf("AutoScalingGroup %s has reached capacity limit, new desired: %d, but max: %d, so reduce new desired", *asg.AutoScalingGroupName, newDesired, *asg.MaxSize)
 		newDesired = int(*asg.MaxSize)
@@ -161,7 +161,7 @@ func updateASGCapacity(client *autoscaling.AutoScaling, asg *autoscaling.Group, 
 		AutoScalingGroupName: asg.AutoScalingGroupName,
 		DesiredCapacity:      aws.Int64(int64(newDesired)),
 	}
-	_, err := client.UpdateAutoScalingGroup(updateInput)
+	_, err := a.autoscaling.UpdateAutoScalingGroup(updateInput)
 	if err != nil {
 		klog.Errorf("failed to update AutoScalingGroups: %v", err)
 		return err
