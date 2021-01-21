@@ -207,7 +207,7 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 		}
 	}
 	sort.SliceStable(asgs, func(i, j int) bool {
-		return *asgs[i].DesiredCapacity < *asgs[j].DesiredCapacity
+		return (*asgs[i].MaxSize - *asgs[i].DesiredCapacity) > (*asgs[j].MaxSize - *asgs[j].DesiredCapacity)
 	})
 	sort.SliceStable(safetyASGs, func(i, j int) bool {
 		return (*safetyASGs[i].MaxSize - *safetyASGs[i].DesiredCapacity) > (*safetyASGs[j].MaxSize - *safetyASGs[j].DesiredCapacity)
@@ -254,29 +254,39 @@ func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenish
 		return err
 	}
 	sumCurrentDesired := 0
-	var asgs []*autoscaling.Group
+	var safetyASGs []*autoscaling.Group
+	// unsafetyASGs have different value desired capacity and current instances count.
+	var unsafetyASGs []*autoscaling.Group
 	for _, asg := range output.AutoScalingGroups {
 		sumCurrentDesired += int(*asg.DesiredCapacity)
-		asgs = append(asgs, asg)
+		if int(*asg.DesiredCapacity) != len(asg.Instances) {
+			unsafetyASGs = append(unsafetyASGs, asg)
+		} else {
+			safetyASGs = append(safetyASGs, asg)
+		}
 	}
-	sort.SliceStable(asgs, func(i, j int) bool {
-		return *asgs[i].DesiredCapacity > *asgs[j].DesiredCapacity
+	sort.SliceStable(safetyASGs, func(i, j int) bool {
+		return (*safetyASGs[i].DesiredCapacity - *safetyASGs[i].MinSize) > (*safetyASGs[j].DesiredCapacity - *safetyASGs[j].MinSize)
+	})
+	sort.SliceStable(unsafetyASGs, func(i, j int) bool {
+		return (*unsafetyASGs[i].DesiredCapacity - *unsafetyASGs[i].MinSize) > (*unsafetyASGs[j].DesiredCapacity - *unsafetyASGs[j].MinSize)
 	})
 
+	if len(unsafetyASGs) > 0 {
+		targetASG := unsafetyASGs[0]
+		newDesired := len(targetASG.Instances)
+		klog.Infof("there is invalid AutoScalingGroup %s, so decrement desired count: %d", *targetASG.AutoScalingGroupName, newDesired)
+		_ = updateASGCapacity(svc, targetASG, newDesired)
+	}
+
 	// Decrement largest desired ASG
-	if len(asgs) < 1 {
+	if len(safetyASGs) < 1 {
 		err := errors.New("there are no AutoScalingGroups, so could not delete instances")
 		klog.Error(err)
 		return err
 	}
-	targetASG := asgs[0]
+	targetASG := safetyASGs[0]
 	newDesired := int(*targetASG.DesiredCapacity) - count
-	if newDesired < 0 {
-		// TODO: https://github.com/h3poteto/node-manager/issues/5
-		err := errors.New("new desired is not positive value")
-		klog.Error(err)
-		return err
-	}
 	klog.Infof("spec desired is %d, and current ASG desired is %d, so decrement desired capacity of largest ASG: %s", replenisher.Spec.Desired, sumCurrentDesired, *targetASG.AutoScalingGroupName)
 	return updateASGCapacity(svc, targetASG, newDesired)
 }
@@ -357,6 +367,15 @@ func updateASGCapacity(client *autoscaling.AutoScaling, asg *autoscaling.Group, 
 	}
 	if newDesired == int(*asg.DesiredCapacity) {
 		err := fmt.Errorf("AutoScalingGroup %s has already fullfilled, so could not update desired capacity", *asg.AutoScalingGroupName)
+		klog.Error(err)
+		return err
+	}
+	if newDesired < int(*asg.MinSize) {
+		klog.Warningf("AutoScalingGroup %s has reached capacity minimize, new desired: %d, but min: %d so increase new desired", *asg.AutoScalingGroupName, newDesired, *asg.MinSize)
+		newDesired = int(*asg.MinSize)
+	}
+	if newDesired == int(*asg.DesiredCapacity) {
+		err := fmt.Errorf("AutoScalingGroup %s has already minimized, so could not update desired capacity", *asg.AutoScalingGroupName)
 		klog.Error(err)
 		return err
 	}
