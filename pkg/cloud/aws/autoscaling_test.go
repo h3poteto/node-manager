@@ -26,54 +26,90 @@ func (m *mockedAutoScalingAPI) UpdateAutoScalingGroup(in *autoscaling.UpdateAuto
 	return &autoscaling.UpdateAutoScalingGroupOutput{}, nil
 }
 
+type TestTargetASG struct {
+	asgName         *string
+	regions         []*string
+	instances       []*autoscaling.Instance
+	maxSize         *int64
+	minSize         *int64
+	desiredCapacity *int64
+	expectedDesired int
+}
+
 func TestInstancesToAutoScalingGroups(t *testing.T) {
-	asgName := "nodes-ap-northeast-1a"
-	region := "ap-northeast-1a"
-	instances := []*autoscaling.Instance{
+	cases := []struct {
+		asgs             []TestTargetASG
+		specDesiredTotal int
+		currentNodeCount int
+	}{
+		// Single ASG, and increment 1 node
 		{
-			AvailabilityZone: aws.String(region),
-			InstanceId:       aws.String("test1"),
-			InstanceType:     aws.String("t3.medium"),
-		},
-	}
-	resp := autoscaling.DescribeAutoScalingGroupsOutput{
-		AutoScalingGroups: []*autoscaling.Group{
-			&autoscaling.Group{
-				AutoScalingGroupName: aws.String(asgName),
-				AvailabilityZones: []*string{
-					aws.String(region),
+			asgs: []TestTargetASG{
+				{
+					asgName: aws.String("nodes-ap-northeast-1a"),
+					regions: []*string{
+						aws.String("ap-northeast-1a"),
+					},
+					instances: []*autoscaling.Instance{
+						{
+							AvailabilityZone: aws.String("ap-northeast-1a"),
+							InstanceId:       aws.String("test1"),
+							InstanceType:     aws.String("t3.medium"),
+						},
+					},
+					maxSize:         aws.Int64(2),
+					minSize:         aws.Int64(0),
+					desiredCapacity: aws.Int64(1),
+					expectedDesired: 2,
 				},
-				DesiredCapacity: aws.Int64(1),
-				Instances:       instances,
-				MaxSize:         aws.Int64(2),
-				MinSize:         aws.Int64(0),
 			},
-		},
-		NextToken: nil,
-	}
-
-	mocked := &mockedAutoScalingAPI{
-		Resp: resp,
-	}
-	a := &AWS{
-		autoscaling: mocked,
-	}
-
-	groups := []operatorv1alpha1.AutoScalingGroup{
-		{
-			Name: asgName,
+			specDesiredTotal: 2,
+			currentNodeCount: 1,
 		},
 	}
 
-	err := a.AddInstancesToAutoScalingGroups(groups, 2, 1)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if val, ok := mocked.RequestASGDesired[asgName]; !ok {
-		t.Errorf("%s does not exist in request", asgName)
-		return
-	} else if val != int64(2) {
-		t.Errorf("%s desired capacity is not matched, expected %d, but returned %d", asgName, 2, val)
+	for _, c := range cases {
+		var asgs []*autoscaling.Group
+		var groups []operatorv1alpha1.AutoScalingGroup
+		for _, ca := range c.asgs {
+			asg := &autoscaling.Group{
+				AutoScalingGroupName: ca.asgName,
+				AvailabilityZones:    ca.regions,
+				DesiredCapacity:      ca.desiredCapacity,
+				Instances:            ca.instances,
+				MaxSize:              ca.maxSize,
+				MinSize:              ca.minSize,
+			}
+			asgs = append(asgs, asg)
+			groups = append(groups, operatorv1alpha1.AutoScalingGroup{
+				Name: *ca.asgName,
+			})
+		}
+		resp := autoscaling.DescribeAutoScalingGroupsOutput{
+			AutoScalingGroups: asgs,
+			NextToken:         nil,
+		}
+		mocked := &mockedAutoScalingAPI{
+			Resp: resp,
+		}
+		a := &AWS{
+			autoscaling: mocked,
+		}
+
+		err := a.AddInstancesToAutoScalingGroups(groups, c.specDesiredTotal, c.specDesiredTotal-c.currentNodeCount)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		for _, ca := range c.asgs {
+			if val, ok := mocked.RequestASGDesired[*ca.asgName]; !ok {
+				t.Errorf("%s does not exist in request", *ca.asgName)
+				return
+			} else if val != int64(ca.expectedDesired) {
+				t.Errorf("%s desired capacity is not matched, expected %d, but returned %d", *ca.asgName, ca.expectedDesired, val)
+			}
+		}
+
 	}
 }
