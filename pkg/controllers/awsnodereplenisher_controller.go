@@ -107,7 +107,7 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 		}
 	} else {
 		klog.Infof("nodes count is %d, but desired count is %d, so adding nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
-		if err := r.addNode(ctx, replenisher, int(replenisher.Spec.Desired)-len(replenisher.Status.AWSNodes)); err != nil {
+		if err := r.addNode(ctx, replenisher, len(replenisher.Status.AWSNodes)); err != nil {
 			return err
 		}
 	}
@@ -141,12 +141,12 @@ func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, repleni
 	return nil
 }
 
-func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
+func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, currentNodesCount int) error {
 	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
 		return err
 	}
 	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
-	return cloud.AddInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), count)
+	return cloud.AddInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), currentNodesCount)
 }
 
 func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
