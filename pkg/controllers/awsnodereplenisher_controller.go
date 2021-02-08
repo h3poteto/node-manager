@@ -102,7 +102,7 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 
 	if len(replenisher.Status.AWSNodes) > int(replenisher.Spec.Desired) {
 		klog.Infof("nodes count is %d, but desired count is %d, so deleting nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
-		if err := r.deleteNode(ctx, replenisher, len(replenisher.Status.AWSNodes)-int(replenisher.Spec.Desired)); err != nil {
+		if err := r.deleteNode(ctx, replenisher, len(replenisher.Status.AWSNodes)); err != nil {
 			return err
 		}
 	} else {
@@ -149,13 +149,13 @@ func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher 
 	return cloud.AddInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), currentNodesCount)
 }
 
-func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, count int) error {
+func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, currentNodesCount int) error {
 	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
 		return err
 	}
 
 	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
-	return cloud.DeleteInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), count)
+	return cloud.DeleteInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), currentNodesCount)
 }
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {

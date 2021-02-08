@@ -76,7 +76,7 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 	return a.updateASGsDesired(safetyASGs)
 }
 
-func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, count int) error {
+func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, currentNodesCount int) error {
 	// Check desired capacity of each AutScalingGroups
 	var asgNameList []*string
 	for i := range groups {
@@ -92,17 +92,24 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 	}
 
 	sumASGDesired := 0
+	sumASGInstances := 0
 	var safetyASGs []*autoscaling.Group
 	// unsafetyASGs have different value desired capacity and current instances count.
 	var unsafetyASGs []*autoscaling.Group
 	for _, asg := range output.AutoScalingGroups {
 		sumASGDesired += int(*asg.DesiredCapacity)
+		sumASGInstances += len(asg.Instances)
 		if int(*asg.DesiredCapacity) != len(asg.Instances) {
 			unsafetyASGs = append(unsafetyASGs, asg)
 		} else {
 			safetyASGs = append(safetyASGs, asg)
 		}
 	}
+	if currentNodesCount != sumASGInstances {
+		err := NewInstanceNotYetJoinErrorf("not all instances join the cluster as nodes, all instances: %d, current nodes: %d", sumASGInstances, currentNodesCount)
+		return err
+	}
+
 	sort.SliceStable(unsafetyASGs, func(i, j int) bool {
 		return (*unsafetyASGs[i].DesiredCapacity - *unsafetyASGs[i].MinSize) > (*unsafetyASGs[j].DesiredCapacity - *unsafetyASGs[j].MinSize)
 	})
@@ -125,7 +132,7 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 	})
 
 	// Decrease desired capacity equally across all ASGs.
-	surplus := count
+	surplus := currentNodesCount - totalDesired
 	for surplus > 0 {
 		// Exit this loop when all ASGs capacity is minimized.
 		if minimized := allASGIsMinimized(safetyASGs); minimized {
