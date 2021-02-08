@@ -322,7 +322,7 @@ func TestAddInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 5,
 			currentNodeCount: 2,
-			expectedError:    &InstanceNotYetJoinError{},
+			expectedError:    NewInstanceNotYetJoinErrorf("not all instances join the cluster as nodes, all instances: %d, current nodes: %d", 3, 2),
 		},
 		// Multiple ASGs which include invalid launch template ASGs, and increase multiple nodes
 		{
@@ -449,6 +449,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 		asgs             []TestTargetASG
 		specDesiredTotal int
 		currentNodeCount int
+		expectedError    error
 	}{
 		// Single ASG, and decrement 1 node
 		{
@@ -479,6 +480,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 1,
 			currentNodeCount: 2,
+			expectedError:    nil,
 		},
 		// Single ASG, and decrease multiple nodes
 		{
@@ -514,6 +516,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 1,
 			currentNodeCount: 3,
+			expectedError:    nil,
 		},
 		// Multiple ASGs, and decrease multiple nodes
 		{
@@ -571,6 +574,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 2,
 			currentNodeCount: 5,
+			expectedError:    nil,
 		},
 		// Multiple ASGs which include minimized ASGs, and decrease multiple nodes
 		{
@@ -635,6 +639,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 2,
 			currentNodeCount: 4,
+			expectedError:    nil,
 		},
 		// Multiple ASGs which are already minimized, and decrease multiple nodes
 		{
@@ -693,6 +698,67 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 1,
 			currentNodeCount: 3,
+			expectedError:    nil,
+		},
+		// Multiple ASGs which include updating ASG, and decrease multiple nodes
+		{
+			title: "Multiple ASGs which include updating ASG, and decrease multiple nodes",
+			asgs: []TestTargetASG{
+				{
+					asgName: aws.String("nodes-ap-northeast-1a"),
+					regions: []*string{
+						aws.String("ap-northeast-1a"),
+					},
+					instances: []*autoscaling.Instance{
+						{
+							AvailabilityZone: aws.String("ap-northeast-1a"),
+							InstanceId:       aws.String("test1"),
+							InstanceType:     aws.String("t3.medium"),
+						},
+					},
+					maxSize:         aws.Int64(2),
+					minSize:         aws.Int64(0),
+					desiredCapacity: aws.Int64(1),
+					expectedDesired: aws.Int(1),
+				},
+				{
+					asgName: aws.String("nodes-ap-northeast-1c"),
+					regions: []*string{
+						aws.String("ap-northeast-1c"),
+					},
+					instances: []*autoscaling.Instance{
+						{
+							AvailabilityZone: aws.String("ap-northeast-1c"),
+							InstanceId:       aws.String("test2"),
+							InstanceType:     aws.String("t3.medium"),
+						},
+					},
+					maxSize:         aws.Int64(2),
+					minSize:         aws.Int64(0),
+					desiredCapacity: aws.Int64(1),
+					expectedDesired: aws.Int(1),
+				},
+				{
+					asgName: aws.String("nodes-ap-northeast-1d"),
+					regions: []*string{
+						aws.String("ap-northeast-1d"),
+					},
+					instances: []*autoscaling.Instance{
+						{
+							AvailabilityZone: aws.String("ap-northeast-1d"),
+							InstanceId:       aws.String("test3"),
+							InstanceType:     aws.String("t3.medium"),
+						},
+					},
+					maxSize:         aws.Int64(2),
+					minSize:         aws.Int64(0),
+					desiredCapacity: aws.Int64(1),
+					expectedDesired: aws.Int(1),
+				},
+			},
+			specDesiredTotal: 5,
+			currentNodeCount: 2,
+			expectedError:    NewInstanceNotYetJoinErrorf("not all instances join the cluster as nodes, all instances: %d, current nodes: %d", 3, 2),
 		},
 		// Multiple ASGs which include invalid launch template ASGs, and decrease multiple nodes
 		{
@@ -751,6 +817,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 1,
 			currentNodeCount: 3,
+			expectedError:    nil,
 		},
 	}
 
@@ -784,9 +851,17 @@ CASE:
 			autoscaling: mocked,
 		}
 
-		err := a.DeleteInstancesToAutoScalingGroups(groups, c.specDesiredTotal, c.currentNodeCount-c.specDesiredTotal)
+		err := a.DeleteInstancesToAutoScalingGroups(groups, c.specDesiredTotal, c.currentNodeCount)
+		if c.expectedError != nil {
+			if err != nil && errors.Is(err, c.expectedError) {
+				continue CASE
+			} else {
+				t.Errorf("CASE: %s : error %v is not expectedError %v", c.title, err, c.expectedError)
+				continue CASE
+			}
+		}
 		if err != nil {
-			t.Error(err)
+			t.Errorf("CASE: %s : %v", c.title, err)
 			continue CASE
 		}
 

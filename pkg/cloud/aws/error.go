@@ -15,3 +15,7 @@ func NewInstanceNotYetJoinErrorf(format string, a ...interface{}) *InstanceNotYe
 func (err *InstanceNotYetJoinError) Error() string {
 	return fmt.Sprintf(err.Msg)
 }
+
+func (err *InstanceNotYetJoinError) Is(target error) bool {
+	return err.Error() == target.Error()
+}
