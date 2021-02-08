@@ -11,7 +11,7 @@ import (
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 )
 
-func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, count int) error {
+func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, currentNodesCount int) error {
 	var asgNameList []*string
 	for i := range groups {
 		asgNameList = append(asgNameList, aws.String(groups[i].Name))
@@ -26,13 +26,20 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 	}
 
 	sumASGDesired := 0
+	sumASGInstances := 0
 	// safetyASGs have same value desired capacity and current instances count.
 	var safetyASGs []*autoscaling.Group
 	for _, asg := range output.AutoScalingGroups {
 		sumASGDesired += int(*asg.DesiredCapacity)
+		sumASGInstances += len(asg.Instances)
 		if int(*asg.DesiredCapacity) == len(asg.Instances) {
 			safetyASGs = append(safetyASGs, asg)
 		}
+	}
+
+	if currentNodesCount != sumASGInstances {
+		err := NewInstanceNotYetJoinErrorf("not all instances join the cluster as nodes, all instances: %d, current nodes: %d", sumASGInstances, currentNodesCount)
+		return err
 	}
 
 	if len(safetyASGs) < 1 {
@@ -46,13 +53,16 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 	})
 
 	// Increase desired capacity equally across all ASGs.
-	surplus := count
+	surplus := totalDesired - currentNodesCount
 	for surplus > 0 {
 		// Exit this loop when all ASGs capacity is fullfilled.
 		if fullfilled := allASGIsFullfilled(safetyASGs); fullfilled {
 			break
 		}
 		for j := range safetyASGs {
+			if surplus < 1 {
+				break
+			}
 			if int(*safetyASGs[j].MaxSize-*safetyASGs[j].DesiredCapacity) > 0 {
 				*safetyASGs[j].DesiredCapacity += 1
 				surplus--
@@ -122,6 +132,9 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 			break
 		}
 		for j := range safetyASGs {
+			if surplus < 1 {
+				break
+			}
 			if int(*safetyASGs[j].DesiredCapacity-*safetyASGs[j].MinSize) > 0 {
 				*safetyASGs[j].DesiredCapacity -= 1
 				surplus--
