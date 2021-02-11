@@ -5,6 +5,7 @@ resources:
 - bases/operator.h3poteto.dev_nodemanagers.yaml
 - bases/operator.h3poteto.dev_awsnodereplenishers.yaml
 - bases/operator.h3poteto.dev_awsnodemanagers.yaml
+- bases/operator.h3poteto.dev_awsnoderefreshers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -13,6 +14,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_nodemanagers.yaml
 #- patches/webhook_in_awsnodereplenishers.yaml
 #- patches/webhook_in_awsnodemanagers.yaml
+#- patches/webhook_in_awsnoderefreshers.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
@@ -20,6 +22,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_nodemanagers.yaml
 #- patches/cainjection_in_awsnodereplenishers.yaml
 #- patches/cainjection_in_awsnodemanagers.yaml
+#- patches/cainjection_in_awsnoderefreshers.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

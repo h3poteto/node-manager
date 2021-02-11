@@ -10,4 +10,7 @@ resources:
 - group: operator
   kind: AWSNodeManager
   version: v1alpha1
+- group: operator
+  kind: AWSNodeRefresher
+  version: v1alpha1
 version: "2"

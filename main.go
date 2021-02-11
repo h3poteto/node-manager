@@ -28,6 +28,7 @@ import (
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	"github.com/h3poteto/node-manager/pkg/controllers/awsnodemanager"
+	"github.com/h3poteto/node-manager/pkg/controllers/awsnoderefresher"
 	"github.com/h3poteto/node-manager/pkg/controllers/awsnodereplenisher"
 	"github.com/h3poteto/node-manager/pkg/controllers/nodemanager"
 	// +kubebuilder:scaffold:imports
@@ -93,6 +94,15 @@ func main() {
 		Scheme:   mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSNodeReplenisher")
+		os.Exit(1)
+	}
+	if err = (&awsnoderefresher.AWSNodeRefresherReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("AWSNodeRefresher"),
+		Recorder: mgr.GetEventRecorderFor("aws-node-refresher"),
+		Scheme:   mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSNodeRefresher")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
