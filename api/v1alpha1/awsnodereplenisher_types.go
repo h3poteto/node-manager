@@ -74,21 +74,6 @@ func init() {
 	SchemeBuilder.Register(&AWSNodeReplenisher{}, &AWSNodeReplenisherList{})
 }
 
-type AWSNode struct {
-	Name                 string `json:"name"`
-	InstanceID           string `json:"instanceID"`
-	AvailabilityZone     string `json:"availabilityZone"`
-	InstanceType         string `json:"instanceType"`
-	AutoScalingGroupName string `json:"autoScalingGroupName"`
-}
-
-type NodeRole string
-
-const (
-	Master = NodeRole("master")
-	Worker = NodeRole("worker")
-)
-
 type AWSNodeReplenisherPhase string
 
 const (

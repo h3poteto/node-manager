@@ -27,7 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
-	"github.com/h3poteto/node-manager/pkg/controllers"
+	"github.com/h3poteto/node-manager/pkg/controllers/awsnodemanager"
+	"github.com/h3poteto/node-manager/pkg/controllers/awsnodereplenisher"
+	"github.com/h3poteto/node-manager/pkg/controllers/nodemanager"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -66,7 +68,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.NodeManagerReconciler{
+	if err = (&nodemanager.NodeManagerReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName("NodeManager"),
 		Recorder: mgr.GetEventRecorderFor("node-manager"),
@@ -75,10 +77,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "NodeManager")
 		os.Exit(1)
 	}
-	if err = (&controllers.AWSNodeReplenisherReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("AWSNodeReplenisher"),
-		Scheme: mgr.GetScheme(),
+	if err = (&awsnodemanager.AWSNodeManagerReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("AWSNodeManager"),
+		Recorder: mgr.GetEventRecorderFor("aws-node-manager"),
+		Scheme:   mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSNodeManager")
+		os.Exit(1)
+	}
+	if err = (&awsnodereplenisher.AWSNodeReplenisherReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("AWSNodeReplenisher"),
+		Recorder: mgr.GetEventRecorderFor("aws-node-replenisher"),
+		Scheme:   mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSNodeReplenisher")
 		os.Exit(1)

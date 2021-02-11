@@ -8,8 +8,8 @@ import (
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 )
 
-func (a *AWS) GetInstancesInformation(replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	for i, node := range replenisher.Status.AWSNodes {
+func (a *AWS) ReflectInstancesInformation(awsNodeManager *operatorv1alpha1.AWSNodeManager) error {
+	for i, node := range awsNodeManager.Status.AWSNodes {
 		if node.InstanceID != "" {
 			continue
 		}
@@ -34,16 +34,16 @@ func (a *AWS) GetInstancesInformation(replenisher *operatorv1alpha1.AWSNodeReple
 			continue
 		}
 		instance := output.Reservations[0].Instances[0]
-		replenisher.Status.AWSNodes[i].InstanceID = *instance.InstanceId
-		replenisher.Status.AWSNodes[i].InstanceType = *instance.InstanceType
-		replenisher.Status.AWSNodes[i].AvailabilityZone = *instance.Placement.AvailabilityZone
+		awsNodeManager.Status.AWSNodes[i].InstanceID = *instance.InstanceId
+		awsNodeManager.Status.AWSNodes[i].InstanceType = *instance.InstanceType
+		awsNodeManager.Status.AWSNodes[i].AvailabilityZone = *instance.Placement.AvailabilityZone
 		// Normally auto scaling group name is filled in name tag of instances.
 		tag := findTag(instance.Tags, "Name")
 		if tag == nil {
 			klog.Warningf("could not find Name tag in aws instance %s", *instance.InstanceId)
 			continue
 		}
-		replenisher.Status.AWSNodes[i].AutoScalingGroupName = *tag.Value
+		awsNodeManager.Status.AWSNodes[i].AutoScalingGroupName = *tag.Value
 	}
 	return nil
 }

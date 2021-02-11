@@ -109,14 +109,32 @@ spec:
           status:
             description: NodeManagerStatus defines the observed state of NodeManager
             properties:
-              masterNodeReplenisherName:
-                type: string
+              masterAWSNodeManager:
+                nullable: true
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
               masterNodes:
                 items:
                   type: string
                 type: array
-              workerNodeReplenisherName:
-                type: string
+              workerAWSNodeManager:
+                nullable: true
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
               workerNodes:
                 items:
                   type: string
