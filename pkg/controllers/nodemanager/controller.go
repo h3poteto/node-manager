@@ -83,15 +83,23 @@ func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager
 		klog.Errorf("failed to list nodes: %v", err)
 		return err
 	}
-	var masterNames []string
-	var workerNames []string
+	var masterNodes, workerNodes []*corev1.Node
 	for i := range nodeList.Items {
-		if _, ok := nodeList.Items[i].Labels[NodeMasterLabel]; ok {
-			masterNames = append(masterNames, nodeList.Items[i].Name)
+		node := &nodeList.Items[i]
+		if _, ok := node.Labels[NodeMasterLabel]; ok {
+			masterNodes = append(masterNodes, node)
 		}
-		if _, ok := nodeList.Items[i].Labels[NodeWorkerLabel]; ok {
-			workerNames = append(workerNames, nodeList.Items[i].Name)
+		if _, ok := node.Labels[NodeWorkerLabel]; ok {
+			workerNodes = append(workerNodes, node)
 		}
+	}
+
+	updated, err := r.reflectNodes(ctx, nodeManager, masterNodes, workerNodes)
+	if err != nil {
+		return err
+	}
+	if updated {
+		return nil
 	}
 
 	switch nodeManager.Spec.CloudProvider {
@@ -101,41 +109,35 @@ func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager
 			klog.Error(err)
 			return err
 		}
-		masterManager, workerManager, err := r.syncAWSNodeManager(ctx, nodeManager, masterNames, workerNames)
+		masterManager, workerManager, err := r.syncAWSNodeManager(ctx, nodeManager, masterNodes, workerNodes)
 		if err != nil {
 			return err
 		}
+		newStatus := nodeManager.Status.DeepCopy()
 		if masterManager != nil {
-			nodeManager.Status.MasterAWSNodeManager = &operatorv1alpha1.AWSNodeManagerRef{
+			newStatus.MasterAWSNodeManager = &operatorv1alpha1.AWSNodeManagerRef{
 				Namespace: masterManager.Namespace,
 				Name:      masterManager.Name,
 			}
 		}
 		if workerManager != nil {
-			nodeManager.Status.WorkerAWSNodeManager = &operatorv1alpha1.AWSNodeManagerRef{
+			newStatus.WorkerAWSNodeManager = &operatorv1alpha1.AWSNodeManagerRef{
 				Namespace: workerManager.Namespace,
 				Name:      workerManager.Name,
 			}
 		}
-		nodeManager.Status.MasterNodes = masterNames
-		nodeManager.Status.WorkerNodes = workerNames
 
-		currentNodeManager := operatorv1alpha1.NodeManager{}
-		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: nodeManager.Namespace, Name: nodeManager.Name}, &currentNodeManager); err != nil {
-			klog.Errorf("failed to get NodeManager %s/%s: %v", nodeManager.Namespace, nodeManager.Name, err)
-			return err
-		}
-		if reflect.DeepEqual(nodeManager.Status, currentNodeManager.Status) {
+		if reflect.DeepEqual(nodeManager.Status, newStatus) {
 			klog.Infof("NodeManager %s/%s is already synced", nodeManager.Namespace, nodeManager.Name)
 			return nil
 		}
-		currentNodeManager.Status = nodeManager.Status
-		if err := r.Client.Update(ctx, &currentNodeManager); err != nil {
-			klog.Errorf("failed to update nodeManager %q/%q: %v", currentNodeManager.Namespace, currentNodeManager.Name, err)
+		nodeManager.Status = *newStatus
+		if err := r.Client.Update(ctx, nodeManager); err != nil {
+			klog.Errorf("failed to update nodeManager %q/%q: %v", nodeManager.Namespace, nodeManager.Name, err)
 			return err
 		}
-		r.Recorder.Eventf(&currentNodeManager, corev1.EventTypeNormal, "Updated", "Updated NodeManager %s/%s", currentNodeManager.Namespace, currentNodeManager.Name)
-		klog.Infof("updated NodeManager status %q/%q", currentNodeManager.Namespace, currentNodeManager.Name)
+		r.Recorder.Eventf(nodeManager, corev1.EventTypeNormal, "Updated", "Updated NodeManager %s/%s", nodeManager.Namespace, nodeManager.Name)
+		klog.Infof("updated NodeManager status %q/%q", nodeManager.Namespace, nodeManager.Name)
 		return nil
 	default:
 		klog.Info("could not find cloud provider in NodeManager resource")

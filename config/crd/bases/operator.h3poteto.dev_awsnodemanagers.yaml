@@ -72,6 +72,9 @@ spec:
                       type: string
                     availabilityZone:
                       type: string
+                    creationTimestamp:
+                      format: date-time
+                      type: string
                     instanceID:
                       type: string
                     instanceType:
@@ -81,6 +84,7 @@ spec:
                   required:
                   - autoScalingGroupName
                   - availabilityZone
+                  - creationTimestamp
                   - instanceID
                   - instanceType
                   - name

@@ -14,6 +14,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+func (r *NodeManagerReconciler) reflectNodes(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, masterNodes, workerNodes []*corev1.Node) (bool, error) {
+	var masterNames, workerNames []string
+	for _, node := range masterNodes {
+		masterNames = append(masterNames, node.Name)
+	}
+	for _, node := range workerNodes {
+		workerNames = append(workerNames, node.Name)
+	}
+	if reflect.DeepEqual(masterNames, nodeManager.Status.MasterNodes) && reflect.DeepEqual(workerNames, nodeManager.Status.WorkerNodes) {
+		klog.Infof("NodeManager %s/%s nodes status is already synced", nodeManager.Namespace, nodeManager.Name)
+		return false, nil
+	}
+	nodeManager.Status.MasterNodes = masterNames
+	nodeManager.Status.WorkerNodes = workerNames
+	if err := r.Client.Update(ctx, nodeManager); err != nil {
+		klog.Errorf("failed to update nodeManager %s/%s: %v", nodeManager.Namespace, nodeManager.Name, err)
+		return false, nil
+	}
+	r.Recorder.Eventf(nodeManager, corev1.EventTypeNormal, "Updated", "Update NodeManager node status %s/%s", nodeManager.Namespace, nodeManager.Name)
+	return true, nil
+}
+
 func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types.NamespacedName) error {
 	klog.Info("finding nodeManager resources")
 	list := operatorv1alpha1.NodeManagerList{}
