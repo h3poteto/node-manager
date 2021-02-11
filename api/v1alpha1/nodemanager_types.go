@@ -33,10 +33,12 @@ type NodeManagerSpec struct {
 
 // NodeManagerStatus defines the observed state of NodeManager
 type NodeManagerStatus struct {
-	MasterNodeReplenisherName string   `json:"masterNodeReplenisherName,omitempty"`
-	WorkerNodeReplenisherName string   `json:"workerNodeReplenisherName,omitempty"`
-	MasterNodes               []string `json:"masterNodes,omitempty"`
-	WorkerNodes               []string `json:"workerNodes,omitempty"`
+	// +nullable
+	MasterAWSNodeManager *AWSNodeManagerRef `json:"masterAWSNodeManager,omitempty"`
+	// +nullable
+	WorkerAWSNodeManager *AWSNodeManagerRef `json:"workerAWSNodeManager,omitempty"`
+	MasterNodes          []string           `json:"masterNodes,omitempty"`
+	WorkerNodes          []string           `json:"workerNodes,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -91,5 +93,14 @@ type Nodes struct {
 type AutoScalingGroup struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=string
+	Name string `json:"name"`
+}
+
+type AWSNodeManagerRef struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	Namespace string `json:"namespace"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
 	Name string `json:"name"`
 }

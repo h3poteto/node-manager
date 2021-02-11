@@ -14,17 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package awsnodereplenisher
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,9 +42,10 @@ const (
 // AWSNodeReplenisherReconciler reconciles a AWSNodeReplenisher object
 type AWSNodeReplenisherReconciler struct {
 	client.Client
-	Log     logr.Logger
-	Scheme  *runtime.Scheme
-	Session *session.Session
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
+	Session  *session.Session
 }
 
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnodereplenishers,verbs=get;list;watch;create;update;patch;delete
@@ -80,11 +82,6 @@ func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error 
 
 // syncReplenisher checks nodes and replenish AWS instances when node resources are not enough.
 func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	klog.Info("syncing nodes and aws instances")
-	if err := r.syncAWSNodes(ctx, replenisher); err != nil {
-		return err
-	}
-
 	klog.Info("reading node info from status")
 
 	if len(replenisher.Status.AWSNodes) == int(replenisher.Spec.Desired) {
@@ -111,33 +108,6 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 			return err
 		}
 	}
-	return nil
-}
-
-func (r *AWSNodeReplenisherReconciler) syncAWSNodes(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
-	if err := cloud.GetInstancesInformation(replenisher); err != nil {
-		return err
-	}
-
-	currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
-	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
-		klog.Errorf("failed to get AWSNodeReplenisher: %v", err)
-		return err
-	}
-	if reflect.DeepEqual(currentReplenisher.Status, replenisher.Status) {
-		klog.Infof("AWSNodeReplenisher %s/%s is already synced", replenisher.Namespace, replenisher.Name)
-		return nil
-	}
-	currentReplenisher.Status = replenisher.Status
-	currentReplenisher.Status.Revision += 1
-	// update replenisher status
-	klog.Infof("updating replenisher status: %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
-	if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
-		klog.Errorf("failed to update replenisher %s/%s: %v", currentReplenisher.Namespace, currentReplenisher.Name, err)
-		return err
-	}
-	klog.Infof("success to update repelnisher %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
 	return nil
 }
 
@@ -174,6 +144,7 @@ func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context
 			klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
 			return err
 		}
+		r.Recorder.Eventf(&currentReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher status %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
 		return nil
 	})
 }
@@ -195,6 +166,7 @@ func (r *AWSNodeReplenisherReconciler) updateStatusSynced(ctx context.Context, r
 			klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
 			return err
 		}
+		r.Recorder.Eventf(&currentReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher status %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
 		return nil
 	})
 }
@@ -214,6 +186,7 @@ func (r *AWSNodeReplenisherReconciler) updateStatusAWSUpdating(ctx context.Conte
 			klog.Errorf("failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
 			return err
 		}
+		r.Recorder.Eventf(&currentReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher status %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
 		return nil
 	})
 }

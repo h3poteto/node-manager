@@ -7,4 +7,7 @@ resources:
 - group: operator
   kind: AWSNodeReplenisher
   version: v1alpha1
+- group: operator
+  kind: AWSNodeManager
+  version: v1alpha1
 version: "2"

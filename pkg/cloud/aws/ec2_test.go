@@ -22,19 +22,19 @@ func (m *mockedEC2API) DescribeInstances(in *ec2.DescribeInstancesInput) (*ec2.D
 
 func TestGetInstanceInformation(t *testing.T) {
 
-	replenisher := &operatorv1alpha1.AWSNodeReplenisher{
+	replenisher := &operatorv1alpha1.AWSNodeManager{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-replenisher",
+			Name:      "test-manager",
 			Namespace: "default",
 		},
-		Spec: operatorv1alpha1.AWSNodeReplenisherSpec{
+		Spec: operatorv1alpha1.AWSNodeManagerSpec{
 			Region:                   "us-east-1",
 			AutoScalingGroups:        nil,
 			Desired:                  0,
 			ASGModifyCoolTimeSeconds: 600,
 			Role:                     "master",
 		},
-		Status: operatorv1alpha1.AWSNodeReplenisherStatus{
+		Status: operatorv1alpha1.AWSNodeManagerStatus{
 			AWSNodes: []operatorv1alpha1.AWSNode{
 				{
 					Name:                 "ip-172-32-16-0",
@@ -44,7 +44,7 @@ func TestGetInstanceInformation(t *testing.T) {
 					AutoScalingGroupName: "",
 				},
 			},
-			Phase: operatorv1alpha1.AWSNodeReplenisherInit,
+			Phase: operatorv1alpha1.AWSNodeManagerInit,
 		},
 	}
 
@@ -82,7 +82,7 @@ func TestGetInstanceInformation(t *testing.T) {
 		ec2: mocked,
 	}
 
-	if err := a.GetInstancesInformation(replenisher); err != nil {
+	if err := a.ReflectInstancesInformation(replenisher); err != nil {
 		t.Error(err)
 		return
 	}
