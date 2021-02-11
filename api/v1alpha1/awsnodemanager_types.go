@@ -80,11 +80,12 @@ func init() {
 }
 
 type AWSNode struct {
-	Name                 string `json:"name"`
-	InstanceID           string `json:"instanceID"`
-	AvailabilityZone     string `json:"availabilityZone"`
-	InstanceType         string `json:"instanceType"`
-	AutoScalingGroupName string `json:"autoScalingGroupName"`
+	Name                 string      `json:"name"`
+	InstanceID           string      `json:"instanceID"`
+	AvailabilityZone     string      `json:"availabilityZone"`
+	InstanceType         string      `json:"instanceType"`
+	AutoScalingGroupName string      `json:"autoScalingGroupName"`
+	CreationTimestamp    metav1.Time `json:"creationTimestamp"`
 }
 
 type NodeRole string

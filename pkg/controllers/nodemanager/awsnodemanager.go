@@ -12,17 +12,17 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (r *NodeManagerReconciler) syncAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, masterNames, workerNames []string) (*operatorv1alpha1.AWSNodeManager, *operatorv1alpha1.AWSNodeManager, error) {
+func (r *NodeManagerReconciler) syncAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, masterNodes, workerNodes []*corev1.Node) (*operatorv1alpha1.AWSNodeManager, *operatorv1alpha1.AWSNodeManager, error) {
 	var masterNodeManager, workerNodeManager *operatorv1alpha1.AWSNodeManager
 	var err error
 	if nodeManager.Spec.Aws.Masters != nil {
-		masterNodeManager, err = r.syncMasterAWSNodeManager(ctx, nodeManager, masterNames)
+		masterNodeManager, err = r.syncMasterAWSNodeManager(ctx, nodeManager, masterNodes)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 	if nodeManager.Spec.Aws.Workers != nil {
-		workerNodeManager, err = r.syncWorkerAWSNodeManager(ctx, nodeManager, workerNames)
+		workerNodeManager, err = r.syncWorkerAWSNodeManager(ctx, nodeManager, workerNodes)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -31,14 +31,16 @@ func (r *NodeManagerReconciler) syncAWSNodeManager(ctx context.Context, nodeMana
 
 }
 
-func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, nodeNames []string, role operatorv1alpha1.NodeRole) (*operatorv1alpha1.AWSNodeManager, error) {
+func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, nodes []*corev1.Node, role operatorv1alpha1.NodeRole) (*operatorv1alpha1.AWSNodeManager, error) {
 	klog.Infof("creating AWSNodeManager for %s", role)
 	switch role {
 	case operatorv1alpha1.Master:
 		newMasterManager := generateMasterAWSNodeManager(nodeManager)
-		for i := range nodeNames {
+		for i := range nodes {
+			node := nodes[i]
 			a := operatorv1alpha1.AWSNode{
-				Name: nodeNames[i],
+				Name:              node.Name,
+				CreationTimestamp: node.CreationTimestamp,
 			}
 			newMasterManager.Status.AWSNodes = append(newMasterManager.Status.AWSNodes, a)
 		}
@@ -51,9 +53,11 @@ func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeMa
 		return newMasterManager, nil
 	case operatorv1alpha1.Worker:
 		newWorkerManager := generateWorkerAWSNodeManager(nodeManager)
-		for i := range nodeNames {
+		for i := range nodes {
+			node := nodes[i]
 			a := operatorv1alpha1.AWSNode{
-				Name: nodeNames[i],
+				Name:              node.Name,
+				CreationTimestamp: node.CreationTimestamp,
 			}
 			newWorkerManager.Status.AWSNodes = append(newWorkerManager.Status.AWSNodes, a)
 		}
@@ -69,23 +73,27 @@ func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeMa
 	}
 }
 
-func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existing *operatorv1alpha1.AWSNodeManager, nodeManager *operatorv1alpha1.NodeManager, nodeNames []string, role operatorv1alpha1.NodeRole) (*operatorv1alpha1.AWSNodeManager, error) {
+func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existing *operatorv1alpha1.AWSNodeManager, nodeManager *operatorv1alpha1.NodeManager, nodes []*corev1.Node, role operatorv1alpha1.NodeRole) (*operatorv1alpha1.AWSNodeManager, error) {
 	switch role {
 	case operatorv1alpha1.Master:
 		newMasterManager := generateMasterAWSNodeManager(nodeManager)
-		var names []string
+		var currentNames, nodeNames []string
 		for _, node := range existing.Status.AWSNodes {
-			names = append(names, node.Name)
+			currentNames = append(currentNames, node.Name)
 		}
-		if reflect.DeepEqual(existing.Spec, newMasterManager.Spec) && reflect.DeepEqual(names, nodeManager.Status.MasterNodes) {
+		for _, node := range nodes {
+			nodeNames = append(nodeNames, node.Name)
+		}
+		if reflect.DeepEqual(existing.Spec, newMasterManager.Spec) && reflect.DeepEqual(currentNames, nodeNames) {
 			klog.Infof("AWSNodeManager %s/%s is already synced", existing.Namespace, existing.Name)
 			return existing, nil
 		}
 		existing.Spec = newMasterManager.Spec
 		existing.Status.AWSNodes = []operatorv1alpha1.AWSNode{}
-		for i := range nodeManager.Status.MasterNodes {
+		for _, node := range nodes {
 			a := operatorv1alpha1.AWSNode{
-				Name: nodeManager.Status.MasterNodes[i],
+				Name:              node.Name,
+				CreationTimestamp: node.CreationTimestamp,
 			}
 			existing.Status.AWSNodes = append(existing.Status.AWSNodes, a)
 		}
@@ -99,19 +107,23 @@ func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existi
 		return existing, nil
 	case operatorv1alpha1.Worker:
 		newWorkerManager := generateWorkerAWSNodeManager(nodeManager)
-		var names []string
+		var currentNames, nodeNames []string
 		for _, node := range existing.Status.AWSNodes {
-			names = append(names, node.Name)
+			currentNames = append(currentNames, node.Name)
 		}
-		if reflect.DeepEqual(existing.Spec, newWorkerManager.Spec) && reflect.DeepEqual(names, nodeManager.Status.WorkerNodes) {
+		for _, node := range nodes {
+			nodeNames = append(nodeNames, node.Name)
+		}
+		if reflect.DeepEqual(existing.Spec, newWorkerManager.Spec) && reflect.DeepEqual(currentNames, nodeNames) {
 			klog.Infof("AWSNodeManager %s/%s is already synced", existing.Namespace, existing.Name)
 			return existing, nil
 		}
 		existing.Spec = newWorkerManager.Spec
 		existing.Status.AWSNodes = []operatorv1alpha1.AWSNode{}
-		for i := range nodeManager.Status.WorkerNodes {
+		for _, node := range nodes {
 			a := operatorv1alpha1.AWSNode{
-				Name: nodeManager.Status.WorkerNodes[i],
+				Name:              node.Name,
+				CreationTimestamp: node.CreationTimestamp,
 			}
 			existing.Status.AWSNodes = append(existing.Status.AWSNodes, a)
 		}
