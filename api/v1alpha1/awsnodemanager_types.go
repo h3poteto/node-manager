@@ -107,9 +107,10 @@ const (
 type AWSNodeManagerPhase string
 
 const (
-	AWSNodeManagerInit        = AWSNodeManagerPhase("init")
-	AWSNodeManagerSynced      = AWSNodeManagerPhase("synced")
-	AWSNodeManagerAWSUpdating = AWSNodeManagerPhase("awsUpdating")
+	AWSNodeManagerInit         = AWSNodeManagerPhase("init")
+	AWSNodeManagerSynced       = AWSNodeManagerPhase("synced")
+	AWSNodeManagerRefreshing   = AWSNodeManagerPhase("refreshing")
+	AWSNodeManagerReplenishing = AWSNodeManagerPhase("replenishing")
 )
 
 type AWSNodeReplenisherRef struct {

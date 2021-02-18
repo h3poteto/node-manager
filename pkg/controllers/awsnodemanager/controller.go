@@ -93,12 +93,26 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNo
 		return err
 	}
 	if refresher != nil {
+		switch refresher.Status.Phase {
+		case operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+			operatorv1alpha1.AWSNodeRefresherUpdateReplacing,
+			operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting,
+			operatorv1alpha1.AWSNodeRefresherUpdateDecreasing:
+			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerRefreshing
+		default:
+			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerSynced
+		}
 		awsNodeManager.Status.NodeRefresher = &operatorv1alpha1.AWSNodeRefresherRef{
 			Namespace: refresher.Namespace,
 			Name:      refresher.Name,
 		}
 	}
 	if replenisher != nil {
+		if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating {
+			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerReplenishing
+		} else {
+			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerSynced
+		}
 		awsNodeManager.Status.NodeReplenisher = &operatorv1alpha1.AWSNodeReplenisherRef{
 			Namespace: replenisher.Namespace,
 			Name:      replenisher.Name,

@@ -27,6 +27,7 @@ func (r *AWSNodeManagerReconciler) syncAWSNodes(ctx context.Context, awsNodeMana
 		return false, nil
 	}
 	currentManager.Status = awsNodeManager.Status
+	currentManager.Status.Phase = operatorv1alpha1.AWSNodeManagerSynced
 	currentManager.Status.Revision += 1
 	// update awsNodeManager status
 	klog.Infof("updating AWSNodeManager status: %s/%s", currentManager.Namespace, currentManager.Name)
