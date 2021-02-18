@@ -39,13 +39,22 @@ type AWSNodeManagerSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=string
 	Role NodeRole `json:"role"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=boolean
+	// +kubebuilder:default=true
+	EnableReplenish bool `json:"enableReplenish"`
+	// +optional
+	// +kubebuilder:validation:Type:=string
+	RefreshSchedule string `json:"refreshSchedule"`
 }
 
 // AWSNodeManagerStatus defines the observed state of AWSNodeManager
 type AWSNodeManagerStatus struct {
 	// +nullable
 	NodeReplenisher *AWSNodeReplenisherRef `json:"nodeReplenisher"`
-	AWSNodes        []AWSNode              `json:"awsNodes,omitempty"`
+	// +nullable
+	NodeRefresher *AWSNodeRefresherRef `json:"nodeRefresher"`
+	AWSNodes      []AWSNode            `json:"awsNodes,omitempty"`
 	// +optinal
 	// +nullable
 	LastASGModifiedTime *metav1.Time `json:"lastASGModifiedTime,omitempty"`
@@ -104,6 +113,15 @@ const (
 )
 
 type AWSNodeReplenisherRef struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	Namespace string `json:"namespace"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	Name string `json:"name"`
+}
+
+type AWSNodeRefresherRef struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	Namespace string `json:"namespace"`

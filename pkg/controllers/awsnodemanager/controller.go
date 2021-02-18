@@ -71,21 +71,38 @@ func (r *AWSNodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeManager{}).
 		Owns(&operatorv1alpha1.AWSNodeReplenisher{}).
+		Owns(&operatorv1alpha1.AWSNodeRefresher{}).
 		Complete(r)
 }
 
 func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) error {
 	klog.Info("syncing nodes and aws instances")
-	if err := r.syncAWSNodes(ctx, awsNodeManager); err != nil {
+	updated, err := r.syncAWSNodes(ctx, awsNodeManager)
+	if err != nil {
+		return err
+	}
+	if updated {
+		return nil
+	}
+	refresher, err := r.syncAWSNodeRefresher(ctx, awsNodeManager)
+	if err != nil {
 		return err
 	}
 	replenisher, err := r.syncAWSNodeReplenisher(ctx, awsNodeManager)
 	if err != nil {
 		return err
 	}
-	awsNodeManager.Status.NodeReplenisher = &operatorv1alpha1.AWSNodeReplenisherRef{
-		Namespace: replenisher.Namespace,
-		Name:      replenisher.Name,
+	if refresher != nil {
+		awsNodeManager.Status.NodeRefresher = &operatorv1alpha1.AWSNodeRefresherRef{
+			Namespace: refresher.Namespace,
+			Name:      refresher.Name,
+		}
+	}
+	if replenisher != nil {
+		awsNodeManager.Status.NodeReplenisher = &operatorv1alpha1.AWSNodeReplenisherRef{
+			Namespace: replenisher.Namespace,
+			Name:      replenisher.Name,
+		}
 	}
 	currentAWSNodeManager := operatorv1alpha1.AWSNodeManager{}
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: awsNodeManager.Namespace, Name: awsNodeManager.Name}, &currentAWSNodeManager); err != nil {

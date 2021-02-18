@@ -60,11 +60,15 @@ spec:
                       enableReplenish:
                         default: true
                         type: boolean
+                      refreshSchedule:
+                        nullable: true
+                        type: string
                     required:
                     - asgModfyCoolTimeSeconds
                     - autoScalingGroups
                     - desired
                     - enableReplenish
+                    - refreshSchedule
                     type: object
                   region:
                     type: string
@@ -89,11 +93,15 @@ spec:
                       enableReplenish:
                         default: true
                         type: boolean
+                      refreshSchedule:
+                        nullable: true
+                        type: string
                     required:
                     - asgModfyCoolTimeSeconds
                     - autoScalingGroups
                     - desired
                     - enableReplenish
+                    - refreshSchedule
                     type: object
                 required:
                 - region
