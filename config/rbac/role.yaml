@@ -29,6 +29,26 @@ rules:
 - apiGroups:
   - operator.h3poteto.dev
   resources:
+  - awsnoderefreshers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
+  - awsnoderefreshers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - operator.h3poteto.dev
+  resources:
   - awsnodereplenishers
   verbs:
   - create

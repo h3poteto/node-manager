@@ -88,6 +88,9 @@ type Nodes struct {
 	// +kubebuilder:validation:Type:=boolean
 	// +kubebuilder:default=true
 	EnableReplenish bool `json:"enableReplenish"`
+	// +nullable
+	// +kubebuilder:validation:Type:=string
+	RefreshSchedule string `json:"refreshSchedule"`
 }
 
 type AutoScalingGroup struct {

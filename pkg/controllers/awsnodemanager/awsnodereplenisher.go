@@ -14,20 +14,11 @@ import (
 )
 
 func (r *AWSNodeManagerReconciler) syncAWSNodeReplenisher(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeReplenisher, error) {
-	klog.Info("checking if an existing AWSNodeReplenisher")
-	if awsNodeManager.Status.NodeReplenisher == nil {
-		return r.createAWSNodeReplenisher(ctx, awsNodeManager)
+	if !awsNodeManager.Spec.EnableReplenish {
+		return nil, nil
 	}
-	existingReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
-	err := r.Client.Get(
-		ctx,
-		client.ObjectKey{
-			Namespace: awsNodeManager.Status.NodeReplenisher.Namespace,
-			Name:      awsNodeManager.Status.NodeReplenisher.Name,
-		},
-		&existingReplenisher,
-	)
-	if apierrors.IsNotFound(err) {
+	existingReplenisher, err := r.fetchExistingReplenisher(ctx, awsNodeManager)
+	if apierrors.IsNotFound(err) || existingReplenisher == nil {
 		klog.Info("AWSNodeReplenisher does not exist, so create it")
 		return r.createAWSNodeReplenisher(ctx, awsNodeManager)
 	}
@@ -36,7 +27,38 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeReplenisher(ctx context.Context, a
 		return nil, err
 	}
 
-	return r.updateAWSNodeReplenisher(ctx, &existingReplenisher, awsNodeManager)
+	return r.updateAWSNodeReplenisher(ctx, existingReplenisher, awsNodeManager)
+}
+
+func (r *AWSNodeManagerReconciler) fetchExistingReplenisher(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeReplenisher, error) {
+	existingReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
+	if awsNodeManager.Status.NodeReplenisher != nil {
+		err := r.Client.Get(
+			ctx,
+			client.ObjectKey{
+				Namespace: awsNodeManager.Status.NodeReplenisher.Namespace,
+				Name:      awsNodeManager.Status.NodeReplenisher.Name,
+			},
+			&existingReplenisher,
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &existingReplenisher, nil
+	}
+	newReplenisher := generateAWSNodeReplenisher(awsNodeManager)
+	err := r.Client.Get(
+		ctx,
+		client.ObjectKey{
+			Namespace: newReplenisher.Namespace,
+			Name:      newReplenisher.Name,
+		},
+		&existingReplenisher,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &existingReplenisher, nil
 }
 
 func (r *AWSNodeManagerReconciler) createAWSNodeReplenisher(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeReplenisher, error) {

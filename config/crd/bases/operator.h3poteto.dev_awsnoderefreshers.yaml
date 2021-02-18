@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: awsnodemanagers.operator.h3poteto.dev
+  name: awsnoderefreshers.operator.h3poteto.dev
 spec:
   group: operator.h3poteto.dev
   names:
-    kind: AWSNodeManager
-    listKind: AWSNodeManagerList
-    plural: awsnodemanagers
-    singular: awsnodemanager
+    kind: AWSNodeRefresher
+    listKind: AWSNodeRefresherList
+    plural: awsnoderefreshers
+    singular: awsnoderefresher
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AWSNodeManager is the Schema for the awsnodemanagers API
+        description: AWSNodeRefresher is the Schema for the awsnoderefreshers API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: AWSNodeManagerSpec defines the desired state of AWSNodeManager
+            description: AWSNodeRefresherSpec defines the desired state of AWSNodeRefresher
             properties:
               asgModfyCoolTimeSeconds:
                 format: int64
@@ -51,25 +51,22 @@ spec:
               desired:
                 format: int32
                 type: integer
-              enableReplenish:
-                default: true
-                type: boolean
-              refreshSchedule:
-                type: string
               region:
                 type: string
               role:
+                type: string
+              schedule:
                 type: string
             required:
             - asgModfyCoolTimeSeconds
             - autoScalingGroups
             - desired
-            - enableReplenish
             - region
             - role
+            - schedule
             type: object
           status:
-            description: AWSNodeManagerStatus defines the observed state of AWSNodeManager
+            description: AWSNodeRefresherStatus defines the observed state of AWSNodeRefresher
             properties:
               awsNodes:
                 items:
@@ -100,40 +97,50 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
-              nodeRefresher:
+              nextUpdateTime:
+                format: date-time
                 nullable: true
-                properties:
-                  name:
-                    type: string
-                  namespace:
-                    type: string
-                required:
-                - name
-                - namespace
-                type: object
-              nodeReplenisher:
-                nullable: true
-                properties:
-                  name:
-                    type: string
-                  namespace:
-                    type: string
-                required:
-                - name
-                - namespace
-                type: object
+                type: string
               phase:
                 default: init
                 type: string
+              replaceTargetNode:
+                nullable: true
+                properties:
+                  autoScalingGroupName:
+                    type: string
+                  availabilityZone:
+                    type: string
+                  creationTimestamp:
+                    format: date-time
+                    type: string
+                  instanceID:
+                    type: string
+                  instanceType:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - autoScalingGroupName
+                - availabilityZone
+                - creationTimestamp
+                - instanceID
+                - instanceType
+                - name
+                type: object
               revision:
                 default: 0
                 format: int64
                 type: integer
+              updateStartTime:
+                format: date-time
+                nullable: true
+                type: string
             required:
-            - nodeRefresher
-            - nodeReplenisher
+            - nextUpdateTime
             - phase
             - revision
+            - updateStartTime
             type: object
         type: object
     served: true

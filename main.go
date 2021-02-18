@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -28,6 +29,7 @@ import (
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	"github.com/h3poteto/node-manager/pkg/controllers/awsnodemanager"
+	"github.com/h3poteto/node-manager/pkg/controllers/awsnoderefresher"
 	"github.com/h3poteto/node-manager/pkg/controllers/awsnodereplenisher"
 	"github.com/h3poteto/node-manager/pkg/controllers/nodemanager"
 	// +kubebuilder:scaffold:imports
@@ -56,12 +58,14 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
+	duration := 5 * time.Minute
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "aad8c6e7.h3poteto.dev",
+		SyncPeriod:         &duration,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -93,6 +97,15 @@ func main() {
 		Scheme:   mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSNodeReplenisher")
+		os.Exit(1)
+	}
+	if err = (&awsnoderefresher.AWSNodeRefresherReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("AWSNodeRefresher"),
+		Recorder: mgr.GetEventRecorderFor("aws-node-refresher"),
+		Scheme:   mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSNodeRefresher")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

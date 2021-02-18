@@ -157,6 +157,8 @@ func generateMasterAWSNodeManager(nodeManager *operatorv1alpha1.NodeManager) *op
 			ASGModifyCoolTimeSeconds: nodeManager.Spec.Aws.Masters.ASGModifyCoolTimeSeconds,
 			Desired:                  nodeManager.Spec.Aws.Masters.Desired,
 			Role:                     operatorv1alpha1.Master,
+			EnableReplenish:          nodeManager.Spec.Aws.Masters.EnableReplenish,
+			RefreshSchedule:          nodeManager.Spec.Aws.Masters.RefreshSchedule,
 		},
 		Status: operatorv1alpha1.AWSNodeManagerStatus{
 			Phase: operatorv1alpha1.AWSNodeManagerInit,
@@ -181,6 +183,8 @@ func generateWorkerAWSNodeManager(nodeManager *operatorv1alpha1.NodeManager) *op
 			ASGModifyCoolTimeSeconds: nodeManager.Spec.Aws.Workers.ASGModifyCoolTimeSeconds,
 			Desired:                  nodeManager.Spec.Aws.Workers.Desired,
 			Role:                     operatorv1alpha1.Worker,
+			EnableReplenish:          nodeManager.Spec.Aws.Workers.EnableReplenish,
+			RefreshSchedule:          nodeManager.Spec.Aws.Workers.RefreshSchedule,
 		},
 		Status: operatorv1alpha1.AWSNodeManagerStatus{
 			Phase: operatorv1alpha1.AWSNodeManagerInit,
