@@ -10,7 +10,7 @@ spec:
     workers:
       desired: 1
       asgModfyCoolTimeSeconds: 600
-      refreshSchedule: "0 16 * * 4"
+      refreshSchedule: "05 18 * * 4"
       enableReplenish: false
       autoScalingGroups:
         - name: nodes-ap-northeast-1a.playground.k8s.h3poteto.dev

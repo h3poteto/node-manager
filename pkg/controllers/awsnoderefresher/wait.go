@@ -33,7 +33,7 @@ func shouldAWSWait(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 
 func (r *AWSNodeRefresherReconciler) stillWaiting(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	now := metav1.Now()
-	if now.Time.After(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
+	if now.Time.Before(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
 		klog.Info("Waiting cooltime")
 		return true
 	}

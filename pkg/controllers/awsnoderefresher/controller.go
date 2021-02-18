@@ -92,6 +92,7 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 		if r.stillWaiting(ctx, refresher) {
 			return nil
 		}
+		klog.Infof("finish waiting")
 		if r.allReplaced(ctx, refresher) {
 			return r.refreshDecrease(ctx, refresher)
 		} else {

@@ -29,7 +29,7 @@ func (r *AWSNodeRefresherReconciler) refreshDecrease(ctx context.Context, refres
 }
 
 func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
-	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateIncreasing {
+	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting {
 		return false
 	}
 	if len(refresher.Status.AWSNodes) > int(refresher.Spec.Desired) {
