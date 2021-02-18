@@ -33,6 +33,7 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 
 func shouldIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherScheduled {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not increase", refresher.Status.Phase)
 		return false
 	}
 	if refresher.Status.NextUpdateTime.Before(now) {
@@ -64,6 +65,7 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 
 func shouldRetryIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateIncreasing {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not retry to increase", refresher.Status.Phase)
 		return false
 	}
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {

@@ -30,6 +30,7 @@ func (r *AWSNodeRefresherReconciler) refreshDecrease(ctx context.Context, refres
 
 func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not decrease", refresher.Status.Phase)
 		return false
 	}
 	if len(refresher.Status.AWSNodes) > int(refresher.Spec.Desired) {
@@ -62,6 +63,7 @@ func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refreshe
 
 func shouldRetryDecrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateDecreasing {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not retry to decrease", refresher.Status.Phase)
 		return false
 	}
 	if len(refresher.Status.AWSNodes) == int(refresher.Spec.Desired) {

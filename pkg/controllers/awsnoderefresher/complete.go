@@ -24,6 +24,7 @@ func (r *AWSNodeRefresherReconciler) refreshComplete(ctx context.Context, refres
 
 func shouldComplete(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateDecreasing {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not complete", refresher.Status.Phase)
 		return false
 	}
 	return true

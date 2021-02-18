@@ -36,6 +36,7 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 
 func shouldReplace(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateIncreasing {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not replace", refresher.Status.Phase)
 		return false
 	}
 	if len(refresher.Status.AWSNodes) != int(refresher.Spec.Desired)+IncreaseInstanceCount {

@@ -23,6 +23,7 @@ func (r *AWSNodeRefresherReconciler) refreshAWSWait(ctx context.Context, refresh
 
 func shouldAWSWait(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateReplacing {
+		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not aws wait", refresher.Status.Phase)
 		return false
 	}
 	if nodeStillLiving(refresher.Status.AWSNodes, refresher.Status.ReplaceTargetNode) {
