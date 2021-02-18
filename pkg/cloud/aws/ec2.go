@@ -56,3 +56,18 @@ func findTag(tags []*ec2.Tag, key string) *ec2.Tag {
 	}
 	return nil
 }
+
+func (a *AWS) DeleteInstance(node *operatorv1alpha1.AWSNode) error {
+	input := &ec2.TerminateInstancesInput{
+		DryRun: nil,
+		InstanceIds: []*string{
+			aws.String(node.InstanceID),
+		},
+	}
+	_, err := a.ec2.TerminateInstances(input)
+	if err != nil {
+		klog.Errorf("failed to terminate instance %s: %v", node.InstanceID, err)
+		return err
+	}
+	return nil
+}

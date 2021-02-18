@@ -29,10 +29,16 @@ type AWSNodeRefresherSpec struct {
 	AutoScalingGroups []AutoScalingGroup `json:"autoScalingGroups"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=integer
+	Desired int32 `json:"desired"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type:=integer
 	ASGModifyCoolTimeSeconds int64 `json:"asgModfyCoolTimeSeconds"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=string
 	Role NodeRole `json:"role"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:valitation:Type:=string
+	Schedule string `json:"schedule"`
 }
 
 // AWSNodeRefresherStatus defines the observed state of AWSNodeRefresher
@@ -45,6 +51,15 @@ type AWSNodeRefresherStatus struct {
 	Revision int64 `json:"revision"`
 	// +kubebuilder:default=init
 	Phase AWSNodeRefresherPhase `json:"phase"`
+	// +optinal
+	// +nullable
+	NextUpdateTime *metav1.Time `json:"nextUpdateTime"`
+	// +optinal
+	// +nullable
+	UpdateStartTime *metav1.Time `json:"updateStartTime"`
+	// +optional
+	// +nullable
+	ReplaceTargetNode *AWSNode `json:"replaceTargetNode,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -74,6 +89,11 @@ func init() {
 type AWSNodeRefresherPhase string
 
 const (
-	AWSNodeRefresherInit        = AWSNodeRefresherPhase("init")
-	AWSNodeRefresherAWSUpdating = AWSNodeRefresherPhase("awsUpdating")
+	AWSNodeRefresherInit             = AWSNodeRefresherPhase("init")
+	AWSNodeRefresherScheduled        = AWSNodeRefresherPhase("scheduled")
+	AWSNodeRefresherUpdateIncreasing = AWSNodeRefresherPhase("increasing")
+	AWSNodeRefresherUpdateReplacing  = AWSNodeRefresherPhase("replacing")
+	AWSNodeRefresherUpdateAWSWaiting = AWSNodeRefresherPhase("awsWaiting")
+	AWSNodeRefresherUpdateDecreasing = AWSNodeRefresherPhase("decreasing")
+	AWSNodeRefresherCompleted        = AWSNodeRefresherPhase("completed")
 )
