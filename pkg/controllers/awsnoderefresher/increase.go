@@ -14,8 +14,12 @@ import (
 const IncreaseInstanceCount int = 1
 
 func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
+	owner, err := r.ownerAWSNodeManager(ctx, refresher)
+	if err != nil {
+		return err
+	}
 	now := metav1.Now()
-	if !shouldIncrease(refresher, &now) {
+	if !shouldIncrease(refresher, &now, owner) {
 		return nil
 	}
 
@@ -31,9 +35,13 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 	return cloud.AddInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired)+1, len(refresher.Status.AWSNodes))
 }
 
-func shouldIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
+func shouldIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time, owner *operatorv1alpha1.AWSNodeManager) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherScheduled {
 		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not increase", refresher.Status.Phase)
+		return false
+	}
+	if owner.Status.Phase == operatorv1alpha1.AWSNodeManagerReplenishing {
+		klog.Info("Now replenishing, so skip refresh")
 		return false
 	}
 	if refresher.Status.NextUpdateTime.Before(now) {

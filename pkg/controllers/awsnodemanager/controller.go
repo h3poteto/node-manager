@@ -92,6 +92,17 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNo
 	if err != nil {
 		return err
 	}
+
+	awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerSynced
+	if replenisher != nil {
+		if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating {
+			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerReplenishing
+		}
+		awsNodeManager.Status.NodeReplenisher = &operatorv1alpha1.AWSNodeReplenisherRef{
+			Namespace: replenisher.Namespace,
+			Name:      replenisher.Name,
+		}
+	}
 	if refresher != nil {
 		switch refresher.Status.Phase {
 		case operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
@@ -99,25 +110,13 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNo
 			operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting,
 			operatorv1alpha1.AWSNodeRefresherUpdateDecreasing:
 			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerRefreshing
-		default:
-			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerSynced
 		}
 		awsNodeManager.Status.NodeRefresher = &operatorv1alpha1.AWSNodeRefresherRef{
 			Namespace: refresher.Namespace,
 			Name:      refresher.Name,
 		}
 	}
-	if replenisher != nil {
-		if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating {
-			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerReplenishing
-		} else {
-			awsNodeManager.Status.Phase = operatorv1alpha1.AWSNodeManagerSynced
-		}
-		awsNodeManager.Status.NodeReplenisher = &operatorv1alpha1.AWSNodeReplenisherRef{
-			Namespace: replenisher.Namespace,
-			Name:      replenisher.Name,
-		}
-	}
+
 	currentAWSNodeManager := operatorv1alpha1.AWSNodeManager{}
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: awsNodeManager.Namespace, Name: awsNodeManager.Name}, &currentAWSNodeManager); err != nil {
 		klog.Errorf("failed to get AWSNodeManager %s/%s: %v", awsNodeManager.Namespace, awsNodeManager.Name, err)

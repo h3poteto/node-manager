@@ -65,6 +65,8 @@ type AWSNodeManagerStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // AWSNodeManager is the Schema for the awsnodemanagers API
 type AWSNodeManager struct {

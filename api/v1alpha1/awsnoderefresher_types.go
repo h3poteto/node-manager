@@ -63,6 +63,8 @@ type AWSNodeRefresherStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // AWSNodeRefresher is the Schema for the awsnoderefreshers API
 type AWSNodeRefresher struct {
