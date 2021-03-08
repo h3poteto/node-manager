@@ -65,6 +65,8 @@ type AWSNodeManagerStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // AWSNodeManager is the Schema for the awsnodemanagers API
 type AWSNodeManager struct {
@@ -107,9 +109,10 @@ const (
 type AWSNodeManagerPhase string
 
 const (
-	AWSNodeManagerInit        = AWSNodeManagerPhase("init")
-	AWSNodeManagerSynced      = AWSNodeManagerPhase("synced")
-	AWSNodeManagerAWSUpdating = AWSNodeManagerPhase("awsUpdating")
+	AWSNodeManagerInit         = AWSNodeManagerPhase("init")
+	AWSNodeManagerSynced       = AWSNodeManagerPhase("synced")
+	AWSNodeManagerRefreshing   = AWSNodeManagerPhase("refreshing")
+	AWSNodeManagerReplenishing = AWSNodeManagerPhase("replenishing")
 )
 
 type AWSNodeReplenisherRef struct {

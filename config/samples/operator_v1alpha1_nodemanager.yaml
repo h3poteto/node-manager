@@ -8,10 +8,10 @@ spec:
   aws:
     region: ap-northeast-1
     workers:
-      desired: 1
+      desired: 2
       asgModfyCoolTimeSeconds: 600
-      refreshSchedule: "05 18 * * 4"
-      enableReplenish: false
+      refreshSchedule: "59 0 * * *"
+      enableReplenish: true
       autoScalingGroups:
         - name: nodes-ap-northeast-1a.playground.k8s.h3poteto.dev
         - name: nodes-ap-northeast-1d.playground.k8s.h3poteto.dev

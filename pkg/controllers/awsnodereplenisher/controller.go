@@ -89,6 +89,15 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 		return r.updateStatusSynced(ctx, replenisher)
 	}
 
+	owner, err := r.ownerAWSNodeManager(ctx, replenisher)
+	if err != nil {
+		return err
+	}
+	if owner.Status.Phase == operatorv1alpha1.AWSNodeManagerRefreshing {
+		klog.Info("Now refreshing, so skip replenish")
+		return nil
+	}
+
 	now := time.Now()
 	if replenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherAWSUpdating &&
 		replenisher.Status.LastASGModifiedTime != nil &&
