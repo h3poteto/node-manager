@@ -2,6 +2,7 @@ package klog
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/klog/v2"
 
@@ -9,97 +10,142 @@ import (
 )
 
 func Info(ctx context.Context, args ...interface{}) {
-	rv := ctx.Value(pkgctx.RequestIDKey)
-	requestID, ok := rv.(string)
-	if !ok {
-		klog.Info(args...)
-		return
-	}
 	cv := ctx.Value(pkgctx.ControllerKey)
 	controller, ok := cv.(string)
 	if !ok {
-		klog.Infof("[%s] %v", requestID, args)
+		klog.InfoDepth(1, args...)
 		return
 	}
-	klog.Infof("[%s] {\"controller\": %q} %v", requestID, controller, args)
+	rv := ctx.Value(pkgctx.RequestIDKey)
+	requestID, ok := rv.(string)
+	if !ok {
+		ctr := []interface{}{
+			fmt.Sprintf("{\"controller\": %q} ", controller),
+		}
+		args = append(ctr, args...)
+		klog.InfoDepth(1, args...)
+		return
+	}
+	prefix := []interface{}{
+		fmt.Sprintf("[%s] ", requestID),
+		fmt.Sprintf("{\"controller\": %q} ", controller),
+	}
+	args = append(prefix, args...)
+	klog.InfoDepth(1, args...)
 }
 
 func Infof(ctx context.Context, format string, args ...interface{}) {
-	rv := ctx.Value(pkgctx.RequestIDKey)
-	requestID, ok := rv.(string)
-	if !ok {
-		klog.Infof(format, args...)
-		return
-	}
 	cv := ctx.Value(pkgctx.ControllerKey)
 	controller, ok := cv.(string)
 	if !ok {
-		klog.Infof("[%s] "+format, requestID, args)
+		klog.InfoDepth(1, fmt.Sprintf(format, args...))
 		return
 	}
-	klog.Infof("[%s] {\"controller\": %q} "+format, requestID, controller, args)
+	rv := ctx.Value(pkgctx.RequestIDKey)
+	requestID, ok := rv.(string)
+	if !ok {
+		args = append([]interface{}{controller}, args...)
+		klog.InfoDepth(1, fmt.Sprintf("{\"controller\": %q} "+format, args...))
+		return
+	}
+	prefix := []interface{}{
+		requestID,
+		controller,
+	}
+	args = append(prefix, args...)
+	klog.InfoDepth(1, fmt.Sprintf("[%s] {\"controller\": %q} "+format, args...))
 }
 
 func Warning(ctx context.Context, args ...interface{}) {
-	rv := ctx.Value(pkgctx.RequestIDKey)
-	requestID, ok := rv.(string)
-	if !ok {
-		klog.Warning(args...)
-		return
-	}
 	cv := ctx.Value(pkgctx.ControllerKey)
 	controller, ok := cv.(string)
 	if !ok {
-		klog.Warningf("[%s] %v", requestID, args)
+		klog.WarningDepth(1, args...)
 		return
 	}
-	klog.Warningf("[%s] {\"controller\": %q} %v", requestID, controller, args)
+	rv := ctx.Value(pkgctx.RequestIDKey)
+	requestID, ok := rv.(string)
+	if !ok {
+		ctr := []interface{}{
+			fmt.Sprintf("{\"controller\": %q} ", controller),
+		}
+		args = append(ctr, args...)
+		klog.WarningDepth(1, args...)
+		return
+	}
+	prefix := []interface{}{
+		fmt.Sprintf("[%s] ", requestID),
+		fmt.Sprintf("{\"controller\": %q} ", controller),
+	}
+	args = append(prefix, args...)
+	klog.WarningDepth(1, args...)
 }
 
 func Warningf(ctx context.Context, format string, args ...interface{}) {
-	rv := ctx.Value(pkgctx.RequestIDKey)
-	requestID, ok := rv.(string)
-	if !ok {
-		klog.Warningf(format, args...)
-		return
-	}
 	cv := ctx.Value(pkgctx.ControllerKey)
 	controller, ok := cv.(string)
 	if !ok {
-		klog.Warningf("[%s] "+format, requestID, args)
+		klog.WarningDepth(1, fmt.Sprintf(format, args...))
 		return
 	}
-	klog.Warningf("[%s] {\"controller\": %q} "+format, requestID, controller, args)
+	rv := ctx.Value(pkgctx.RequestIDKey)
+	requestID, ok := rv.(string)
+	if !ok {
+		args = append([]interface{}{controller}, args...)
+		klog.WarningDepth(1, fmt.Sprintf("{\"controller\": %q} "+format, args...))
+		return
+	}
+	prefix := []interface{}{
+		requestID,
+		controller,
+	}
+	args = append(prefix, args...)
+	klog.WarningDepth(1, fmt.Sprintf("[%s] {\"controller\": %q} "+format, args...))
 }
 
 func Error(ctx context.Context, args ...interface{}) {
-	rv := ctx.Value(pkgctx.RequestIDKey)
-	requestID, ok := rv.(string)
-	if !ok {
-		klog.Error(args...)
-		return
-	}
 	cv := ctx.Value(pkgctx.ControllerKey)
 	controller, ok := cv.(string)
 	if !ok {
-		klog.Errorf("[%s] %v", requestID, args)
+		klog.ErrorDepth(1, args...)
 		return
 	}
-	klog.Errorf("[%s] {\"controller\": %q} %v", requestID, controller, args)
+	rv := ctx.Value(pkgctx.RequestIDKey)
+	requestID, ok := rv.(string)
+	if !ok {
+		ctr := []interface{}{
+			fmt.Sprintf("{\"controller\": %q} ", controller),
+		}
+		args = append(ctr, args...)
+		klog.ErrorDepth(1, args...)
+		return
+	}
+	prefix := []interface{}{
+		fmt.Sprintf("[%s] ", requestID),
+		fmt.Sprintf("{\"controller\": %q} ", controller),
+	}
+	args = append(prefix, args...)
+	klog.ErrorDepth(1, args...)
 }
 
 func Errorf(ctx context.Context, format string, args ...interface{}) {
-	rv := ctx.Value(pkgctx.RequestIDKey)
-	requestID, ok := rv.(string)
-	if !ok {
-		klog.Errorf(format, args...)
-		return
-	}
 	cv := ctx.Value(pkgctx.ControllerKey)
 	controller, ok := cv.(string)
 	if !ok {
-		klog.Errorf("[%s] "+format, requestID, args)
+		klog.ErrorDepth(1, fmt.Sprintf(format, args...))
 		return
 	}
-	klog.Errorf("[%s] {\"controller\": %q} "+format, requestID, controller, args)
+	rv := ctx.Value(pkgctx.RequestIDKey)
+	requestID, ok := rv.(string)
+	if !ok {
+		args = append([]interface{}{controller}, args...)
+		klog.ErrorDepth(1, fmt.Sprintf("{\"controller\": %q} "+format, args...))
+		return
+	}
+	prefix := []interface{}{
+		requestID,
+		controller,
+	}
+	args = append(prefix, args...)
+	klog.ErrorDepth(1, fmt.Sprintf("[%s] {\"controller\": %q} "+format, args...))
 }

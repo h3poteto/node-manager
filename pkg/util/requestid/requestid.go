@@ -6,7 +6,7 @@ import (
 )
 
 func RequestID() (string, error) {
-	r := make([]byte, 12)
+	r := make([]byte, 6)
 	_, err := rand.Read(r)
 	if err != nil {
 		return "", err
