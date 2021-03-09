@@ -25,11 +25,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
+	"github.com/h3poteto/node-manager/pkg/util/requestid"
 )
 
 // AWSNodeManagerReconciler reconciles a AWSNodeManager object
@@ -46,11 +48,17 @@ type AWSNodeManagerReconciler struct {
 
 func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnodemanager", req.NamespacedName)
+	ctx = pkgctx.SetController(ctx, "nodemanager")
+	id, err := requestid.RequestID()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	ctx = pkgctx.SetRequestID(ctx, id)
 
-	klog.Info("fetching AWSNodeManager resources")
+	klog.Info(ctx, "fetching AWSNodeManager resources")
 	awsNodeManager := operatorv1alpha1.AWSNodeManager{}
 	if err := r.Client.Get(ctx, req.NamespacedName, &awsNodeManager); err != nil {
-		klog.Infof("failed to get AWSNodeManager resources: %v", err)
+		klog.Infof(ctx, "failed to get AWSNodeManager resources: %v", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -60,7 +68,7 @@ func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}))
 
 	if err := r.syncAWSNodeManager(ctx, &awsNodeManager); err != nil {
-		klog.Errorf("failed to sync AWSNodeManager: %v", err)
+		klog.Errorf(ctx, "failed to sync AWSNodeManager: %v", err)
 		return ctrl.Result{}, err
 	}
 
@@ -76,7 +84,7 @@ func (r *AWSNodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) error {
-	klog.Info("syncing nodes and aws instances")
+	klog.Info(ctx, "syncing nodes and aws instances")
 	updated, err := r.syncAWSNodes(ctx, awsNodeManager)
 	if err != nil {
 		return err
@@ -119,19 +127,19 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNo
 
 	currentAWSNodeManager := operatorv1alpha1.AWSNodeManager{}
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: awsNodeManager.Namespace, Name: awsNodeManager.Name}, &currentAWSNodeManager); err != nil {
-		klog.Errorf("failed to get AWSNodeManager %s/%s: %v", awsNodeManager.Namespace, awsNodeManager.Name, err)
+		klog.Errorf(ctx, "failed to get AWSNodeManager %s/%s: %v", awsNodeManager.Namespace, awsNodeManager.Name, err)
 		return err
 	}
 	if reflect.DeepEqual(awsNodeManager.Status, currentAWSNodeManager.Status) {
-		klog.Infof("AWSNodeManager %s/%s is already synced", awsNodeManager.Namespace, awsNodeManager.Name)
+		klog.Infof(ctx, "AWSNodeManager %s/%s is already synced", awsNodeManager.Namespace, awsNodeManager.Name)
 		return nil
 	}
 	currentAWSNodeManager.Status = awsNodeManager.Status
 	if err := r.Client.Update(ctx, &currentAWSNodeManager); err != nil {
-		klog.Errorf("failed to update AWSNodemanager %s/%s: %v", currentAWSNodeManager.Namespace, currentAWSNodeManager.Name, err)
+		klog.Errorf(ctx, "failed to update AWSNodemanager %s/%s: %v", currentAWSNodeManager.Namespace, currentAWSNodeManager.Name, err)
 		return err
 	}
-	klog.Infof("updated AWSNodeManager status %s/%s", currentAWSNodeManager.Namespace, currentAWSNodeManager.Name)
+	klog.Infof(ctx, "updated AWSNodeManager status %s/%s", currentAWSNodeManager.Namespace, currentAWSNodeManager.Name)
 	r.Recorder.Eventf(&currentAWSNodeManager, corev1.EventTypeNormal, "Updated", "Updated AWSNodeManager %s/%s", currentAWSNodeManager.Namespace, currentAWSNodeManager.Name)
 	return nil
 }

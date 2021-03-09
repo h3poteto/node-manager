@@ -5,11 +5,11 @@ import (
 	"reflect"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -19,11 +19,11 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeReplenisher(ctx context.Context, a
 	}
 	existingReplenisher, err := r.fetchExistingReplenisher(ctx, awsNodeManager)
 	if apierrors.IsNotFound(err) || existingReplenisher == nil {
-		klog.Info("AWSNodeReplenisher does not exist, so create it")
+		klog.Info(ctx, "AWSNodeReplenisher does not exist, so create it")
 		return r.createAWSNodeReplenisher(ctx, awsNodeManager)
 	}
 	if err != nil {
-		klog.Errorf("failed to get AWSNodeReplenisher: %v", err)
+		klog.Errorf(ctx, "failed to get AWSNodeReplenisher: %v", err)
 		return nil, err
 	}
 
@@ -62,10 +62,10 @@ func (r *AWSNodeManagerReconciler) fetchExistingReplenisher(ctx context.Context,
 }
 
 func (r *AWSNodeManagerReconciler) createAWSNodeReplenisher(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeReplenisher, error) {
-	klog.Info("creating AWSNodeReplenisher")
+	klog.Info(ctx, "creating AWSNodeReplenisher")
 	newReplenisher := generateAWSNodeReplenisher(awsNodeManager)
 	if err := r.Client.Create(ctx, newReplenisher); err != nil {
-		klog.Errorf("failed to create AWSNodeReplenisher: %v", err)
+		klog.Errorf(ctx, "failed to create AWSNodeReplenisher: %v", err)
 		return nil, err
 	}
 	r.Recorder.Eventf(newReplenisher, corev1.EventTypeNormal, "Created", "Created AWSNodeReplenisher %s/%s", newReplenisher.Namespace, newReplenisher.Name)
@@ -75,17 +75,17 @@ func (r *AWSNodeManagerReconciler) createAWSNodeReplenisher(ctx context.Context,
 func (r *AWSNodeManagerReconciler) updateAWSNodeReplenisher(ctx context.Context, existingReplenisher *operatorv1alpha1.AWSNodeReplenisher, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeReplenisher, error) {
 	newReplenisher := generateAWSNodeReplenisher(awsNodeManager)
 	if reflect.DeepEqual(existingReplenisher.Spec, newReplenisher.Spec) && reflect.DeepEqual(existingReplenisher.Status.AWSNodes, newReplenisher.Status.AWSNodes) {
-		klog.Infof("AWSNodeReplenisher %s/%s is already synced", existingReplenisher.Namespace, existingReplenisher.Name)
+		klog.Infof(ctx, "AWSNodeReplenisher %s/%s is already synced", existingReplenisher.Namespace, existingReplenisher.Name)
 		return existingReplenisher, nil
 	}
 	existingReplenisher.Spec = newReplenisher.Spec
 	existingReplenisher.Status.AWSNodes = newReplenisher.Status.AWSNodes
 	existingReplenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, existingReplenisher); err != nil {
-		klog.Errorf("failed to update existing AWSNodeReplenisher %s/%s: %v", existingReplenisher.Namespace, existingReplenisher.Name, err)
+		klog.Errorf(ctx, "failed to update existing AWSNodeReplenisher %s/%s: %v", existingReplenisher.Namespace, existingReplenisher.Name, err)
 		return nil, err
 	}
-	klog.Infof("updated AWSNodeReplenisher %s/%s", existingReplenisher.Namespace, existingReplenisher.Name)
+	klog.Infof(ctx, "updated AWSNodeReplenisher %s/%s", existingReplenisher.Namespace, existingReplenisher.Name)
 	r.Recorder.Eventf(existingReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher %s/%s", existingReplenisher.Namespace, existingReplenisher.Name)
 	return existingReplenisher, nil
 }

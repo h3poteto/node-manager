@@ -6,13 +6,13 @@ import (
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
 func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
-	if !shouldReplace(refresher) {
+	if !shouldReplace(ctx, refresher) {
 		return nil
 	}
 
@@ -26,7 +26,7 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 	refresher.Status.LastASGModifiedTime = &now
 	refresher.Status.ReplaceTargetNode = target
 	if err := r.Client.Update(ctx, refresher); err != nil {
-		klog.Errorf("failed to update refresher: %v", err)
+		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
 
@@ -34,13 +34,13 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 	return cloud.DeleteInstance(target)
 }
 
-func shouldReplace(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
+func shouldReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateIncreasing {
-		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not replace", refresher.Status.Phase)
+		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not replace", refresher.Status.Phase)
 		return false
 	}
 	if len(refresher.Status.AWSNodes) != int(refresher.Spec.Desired)+IncreaseInstanceCount {
-		klog.Infof("Node is not enough, current: %d, desired: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
+		klog.Infof(ctx, "Node is not enough, current: %d, desired: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
 		return false
 	}
 	return true
@@ -67,7 +67,7 @@ func findDeleteTarget(nodes []operatorv1alpha1.AWSNode) (*operatorv1alpha1.AWSNo
 func (r *AWSNodeRefresherReconciler) refreshNextReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateIncreasing
 	if err := r.Client.Update(ctx, refresher); err != nil {
-		klog.Errorf("failed to update refresher: %v", err)
+		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
 	return nil

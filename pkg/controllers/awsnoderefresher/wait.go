@@ -5,25 +5,26 @@ import (
 	"time"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
 func (r *AWSNodeRefresherReconciler) refreshAWSWait(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
-	if !shouldAWSWait(refresher) {
+	if !shouldAWSWait(ctx, refresher) {
 		return nil
 	}
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting
 	if err := r.Client.Update(ctx, refresher); err != nil {
-		klog.Errorf("failed to update refresher: %v", err)
+		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
 	return nil
 }
 
-func shouldAWSWait(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
+func shouldAWSWait(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateReplacing {
-		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not aws wait", refresher.Status.Phase)
+		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not aws wait", refresher.Status.Phase)
 		return false
 	}
 	if nodeStillLiving(refresher.Status.AWSNodes, refresher.Status.ReplaceTargetNode) {
@@ -35,11 +36,11 @@ func shouldAWSWait(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 func (r *AWSNodeRefresherReconciler) stillWaiting(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	now := metav1.Now()
 	if now.Time.Before(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
-		klog.Info("Waiting cooltime")
+		klog.Info(ctx, "Waiting cooltime")
 		return true
 	}
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {
-		klog.Infof("Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
+		klog.Infof(ctx, "Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
 		return true
 	}
 	return false

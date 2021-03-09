@@ -23,11 +23,13 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
+	"github.com/h3poteto/node-manager/pkg/util/requestid"
 )
 
 // AWSNodeRefresherReconciler reconciles a AWSNodeRefresher object
@@ -44,11 +46,17 @@ type AWSNodeRefresherReconciler struct {
 
 func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnoderefresher", req.NamespacedName)
+	ctx = pkgctx.SetController(ctx, "nodemanager")
+	id, err := requestid.RequestID()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	ctx = pkgctx.SetRequestID(ctx, id)
 
-	klog.Info("fetching AWSNodeRefresher", req.NamespacedName)
+	klog.Info(ctx, "fetching AWSNodeRefresher", req.NamespacedName)
 	refresher := operatorv1alpha1.AWSNodeRefresher{}
 	if err := r.Client.Get(ctx, req.NamespacedName, &refresher); err != nil {
-		klog.Infof("failed to get AWSNodeRefresher resources: %v", err)
+		klog.Infof(ctx, "failed to get AWSNodeRefresher resources: %v", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -58,7 +66,7 @@ func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}))
 
 	if err := r.syncRefresher(ctx, &refresher); err != nil {
-		klog.Errorf("failed to sync AWSNodeRefresher: %v", err)
+		klog.Errorf(ctx, "failed to sync AWSNodeRefresher: %v", err)
 		return ctrl.Result{}, err
 	}
 
@@ -92,7 +100,7 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 		if r.stillWaiting(ctx, refresher) {
 			return nil
 		}
-		klog.Infof("finish waiting")
+		klog.Infof(ctx, "finish waiting")
 		if r.allReplaced(ctx, refresher) {
 			return r.refreshDecrease(ctx, refresher)
 		} else {
@@ -110,7 +118,7 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 	case operatorv1alpha1.AWSNodeRefresherCompleted:
 		return r.scheduleNext(ctx, refresher)
 	default:
-		klog.Warningf("Unknown phase %s for AWSNodeRefrehser", refresher.Status.Phase)
+		klog.Warningf(ctx, "Unknown phase %s for AWSNodeRefrehser", refresher.Status.Phase)
 		return nil
 	}
 }

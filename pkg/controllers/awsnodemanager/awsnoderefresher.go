@@ -5,10 +5,11 @@ import (
 	"reflect"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -16,14 +17,14 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeRefresher(ctx context.Context, aws
 	if awsNodeManager.Spec.RefreshSchedule == "" {
 		return nil, nil
 	}
-	klog.Info("checking if an existing AWSNodeRefresher")
+	klog.Info(ctx, "checking if an existing AWSNodeRefresher")
 	existingRefresher, err := r.fetchExistingRefresher(ctx, awsNodeManager)
 	if apierrors.IsNotFound(err) || existingRefresher == nil {
-		klog.Info("AWSNodeRefresher does not exist, so create it")
+		klog.Info(ctx, "AWSNodeRefresher does not exist, so create it")
 		return r.createAWSNodeRefresher(ctx, awsNodeManager)
 	}
 	if err != nil {
-		klog.Errorf("failed to get AWSNodeRefresher: %v", err)
+		klog.Errorf(ctx, "failed to get AWSNodeRefresher: %v", err)
 		return nil, err
 	}
 
@@ -62,10 +63,10 @@ func (r *AWSNodeManagerReconciler) fetchExistingRefresher(ctx context.Context, a
 }
 
 func (r *AWSNodeManagerReconciler) createAWSNodeRefresher(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeRefresher, error) {
-	klog.Infof("creating AWSNodeRefresher")
+	klog.Infof(ctx, "creating AWSNodeRefresher")
 	newRefresher := generateAWSNodeRefresher(awsNodeManager)
 	if err := r.Client.Create(ctx, newRefresher); err != nil {
-		klog.Errorf("failed to create AWSNodeRefresher: %v", err)
+		klog.Errorf(ctx, "failed to create AWSNodeRefresher: %v", err)
 		return nil, err
 	}
 	r.Recorder.Eventf(newRefresher, corev1.EventTypeNormal, "Created", "Created AWSNodeRefresher %s/%s", newRefresher.Namespace, newRefresher.Name)
@@ -81,10 +82,10 @@ func (r *AWSNodeManagerReconciler) updateAWSNodeRefresher(ctx context.Context, e
 	existingRefresher.Status.AWSNodes = newRefresher.Status.AWSNodes
 	existingRefresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, existingRefresher); err != nil {
-		klog.Errorf("failed to update existing AWSNodeRefresher %s/%s: %v", existingRefresher.Namespace, existingRefresher.Name, err)
+		klog.Errorf(ctx, "failed to update existing AWSNodeRefresher %s/%s: %v", existingRefresher.Namespace, existingRefresher.Name, err)
 		return nil, err
 	}
-	klog.Infof("updated AWSNodeRefresher %s/%s", existingRefresher.Namespace, existingRefresher.Name)
+	klog.Infof(ctx, "updated AWSNodeRefresher %s/%s", existingRefresher.Namespace, existingRefresher.Name)
 	r.Recorder.Eventf(existingRefresher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeRefresher %s/%s", existingRefresher.Namespace, existingRefresher.Name)
 	return existingRefresher, nil
 }

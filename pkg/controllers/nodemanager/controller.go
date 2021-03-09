@@ -25,13 +25,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
+	"github.com/h3poteto/node-manager/pkg/util/requestid"
 )
 
 const (
@@ -52,11 +54,17 @@ type NodeManagerReconciler struct {
 
 func (r *NodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("nodemanager", req.NamespacedName)
+	ctx = pkgctx.SetController(ctx, "nodemanager")
+	id, err := requestid.RequestID()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	ctx = pkgctx.SetRequestID(ctx, id)
 
 	nodeManager := operatorv1alpha1.NodeManager{}
 	// We watch NodeManager resources and Node resources.
 	// So, the request can contains both of them.
-	klog.Infof("fetching NodeManager resources: %s", req.NamespacedName.Name)
+	klog.Infof(ctx, "fetching NodeManager resources: %s", req.NamespacedName.Name)
 	if err := r.Client.Get(ctx, req.NamespacedName, &nodeManager); err == nil {
 		err := r.syncNodeManager(ctx, &nodeManager)
 		return ctrl.Result{}, err
@@ -77,10 +85,10 @@ func (r *NodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager) error {
-	klog.Info("fetching node resources")
+	klog.Info(ctx, "fetching node resources")
 	nodeList := corev1.NodeList{}
 	if err := r.Client.List(ctx, &nodeList); err != nil {
-		klog.Errorf("failed to list nodes: %v", err)
+		klog.Errorf(ctx, "failed to list nodes: %v", err)
 		return err
 	}
 	var masterNodes, workerNodes []*corev1.Node
@@ -106,7 +114,7 @@ func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager
 	case "aws":
 		if nodeManager.Spec.Aws == nil {
 			err := errors.New("please specify spec.aws when cloudProvider is aws")
-			klog.Error(err)
+			klog.Error(ctx, err)
 			return err
 		}
 		masterManager, workerManager, err := r.syncAWSNodeManager(ctx, nodeManager, masterNodes, workerNodes)
@@ -128,19 +136,19 @@ func (r *NodeManagerReconciler) syncNodeManager(ctx context.Context, nodeManager
 		}
 
 		if reflect.DeepEqual(nodeManager.Status, newStatus) {
-			klog.Infof("NodeManager %s/%s is already synced", nodeManager.Namespace, nodeManager.Name)
+			klog.Infof(ctx, "NodeManager %s/%s is already synced", nodeManager.Namespace, nodeManager.Name)
 			return nil
 		}
 		nodeManager.Status = *newStatus
 		if err := r.Client.Update(ctx, nodeManager); err != nil {
-			klog.Errorf("failed to update nodeManager %q/%q: %v", nodeManager.Namespace, nodeManager.Name, err)
+			klog.Errorf(ctx, "failed to update nodeManager %q/%q: %v", nodeManager.Namespace, nodeManager.Name, err)
 			return err
 		}
 		r.Recorder.Eventf(nodeManager, corev1.EventTypeNormal, "Updated", "Updated NodeManager %s/%s", nodeManager.Namespace, nodeManager.Name)
-		klog.Infof("updated NodeManager status %q/%q", nodeManager.Namespace, nodeManager.Name)
+		klog.Infof(ctx, "updated NodeManager status %q/%q", nodeManager.Namespace, nodeManager.Name)
 		return nil
 	default:
-		klog.Info("could not find cloud provider in NodeManager resource")
+		klog.Info(ctx, "could not find cloud provider in NodeManager resource")
 		return nil
 	}
 }
