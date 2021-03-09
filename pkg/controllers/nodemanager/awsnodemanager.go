@@ -6,10 +6,10 @@ import (
 	"reflect"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
 func (r *NodeManagerReconciler) syncAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, masterNodes, workerNodes []*corev1.Node) (*operatorv1alpha1.AWSNodeManager, *operatorv1alpha1.AWSNodeManager, error) {
@@ -32,7 +32,7 @@ func (r *NodeManagerReconciler) syncAWSNodeManager(ctx context.Context, nodeMana
 }
 
 func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, nodes []*corev1.Node, role operatorv1alpha1.NodeRole) (*operatorv1alpha1.AWSNodeManager, error) {
-	klog.Infof("creating AWSNodeManager for %s", role)
+	klog.Infof(ctx, "creating AWSNodeManager for %s", role)
 	switch role {
 	case operatorv1alpha1.Master:
 		newMasterManager := generateMasterAWSNodeManager(nodeManager)
@@ -45,7 +45,7 @@ func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeMa
 			newMasterManager.Status.AWSNodes = append(newMasterManager.Status.AWSNodes, a)
 		}
 		if err := r.Client.Create(ctx, newMasterManager); err != nil {
-			klog.Errorf("failed to create AWSNodemanager for %s", role)
+			klog.Errorf(ctx, "failed to create AWSNodemanager for %s", role)
 			return nil, err
 		}
 
@@ -62,7 +62,7 @@ func (r *NodeManagerReconciler) createAWSNodeManager(ctx context.Context, nodeMa
 			newWorkerManager.Status.AWSNodes = append(newWorkerManager.Status.AWSNodes, a)
 		}
 		if err := r.Client.Create(ctx, newWorkerManager); err != nil {
-			klog.Errorf("failed to create AWSNodeManager for %s", role)
+			klog.Errorf(ctx, "failed to create AWSNodeManager for %s", role)
 			return nil, err
 		}
 
@@ -85,7 +85,7 @@ func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existi
 			nodeNames = append(nodeNames, node.Name)
 		}
 		if reflect.DeepEqual(existing.Spec, newMasterManager.Spec) && reflect.DeepEqual(currentNames, nodeNames) {
-			klog.Infof("AWSNodeManager %s/%s is already synced", existing.Namespace, existing.Name)
+			klog.Infof(ctx, "AWSNodeManager %s/%s is already synced", existing.Namespace, existing.Name)
 			return existing, nil
 		}
 		existing.Spec = newMasterManager.Spec
@@ -99,10 +99,10 @@ func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existi
 		}
 		existing.Status.Revision += 1
 		if err := r.Client.Update(ctx, existing); err != nil {
-			klog.Errorf("failed to update existing AWSNodeManager %s/%s: %v", existing.Namespace, existing.Name, err)
+			klog.Errorf(ctx, "failed to update existing AWSNodeManager %s/%s: %v", existing.Namespace, existing.Name, err)
 			return nil, err
 		}
-		klog.Infof("updated AWSNodeManager spec for master %s/%s", existing.Namespace, existing.Name)
+		klog.Infof(ctx, "updated AWSNodeManager spec for master %s/%s", existing.Namespace, existing.Name)
 		r.Recorder.Eventf(existing, corev1.EventTypeNormal, "Updated", "Updated AWSNodeManager %s/%s", existing.Namespace, existing.Name)
 		return existing, nil
 	case operatorv1alpha1.Worker:
@@ -115,7 +115,7 @@ func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existi
 			nodeNames = append(nodeNames, node.Name)
 		}
 		if reflect.DeepEqual(existing.Spec, newWorkerManager.Spec) && reflect.DeepEqual(currentNames, nodeNames) {
-			klog.Infof("AWSNodeManager %s/%s is already synced", existing.Namespace, existing.Name)
+			klog.Infof(ctx, "AWSNodeManager %s/%s is already synced", existing.Namespace, existing.Name)
 			return existing, nil
 		}
 		existing.Spec = newWorkerManager.Spec
@@ -129,10 +129,10 @@ func (r *NodeManagerReconciler) updateAWSNodeManager(ctx context.Context, existi
 		}
 		existing.Status.Revision += 1
 		if err := r.Client.Update(ctx, existing); err != nil {
-			klog.Errorf("failed to update existing AWSNodeManager %s/%s: %v", existing.Namespace, existing.Name, err)
+			klog.Errorf(ctx, "failed to update existing AWSNodeManager %s/%s: %v", existing.Namespace, existing.Name, err)
 			return nil, err
 		}
-		klog.Infof("updated AWSNodeManager spec for worker %s/%s", existing.Namespace, existing.Name)
+		klog.Infof(ctx, "updated AWSNodeManager spec for worker %s/%s", existing.Namespace, existing.Name)
 		r.Recorder.Eventf(existing, corev1.EventTypeNormal, "Updated", "Updated AWSNodeManager %s/%s", existing.Namespace, existing.Name)
 		return existing, nil
 	default:

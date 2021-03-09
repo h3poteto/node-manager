@@ -5,10 +5,10 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
 )
 
 const IncreaseInstanceCount int = 1
@@ -19,7 +19,7 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 		return err
 	}
 	now := metav1.Now()
-	if !shouldIncrease(refresher, &now, owner) {
+	if !shouldIncrease(ctx, refresher, &now, owner) {
 		return nil
 	}
 
@@ -27,7 +27,7 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 	refresher.Status.UpdateStartTime = &now
 	refresher.Status.LastASGModifiedTime = &now
 	if err := r.Client.Update(ctx, refresher); err != nil {
-		klog.Errorf("failed to update refresher: %v", err)
+		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
 
@@ -35,13 +35,13 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 	return cloud.AddInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired)+1, len(refresher.Status.AWSNodes))
 }
 
-func shouldIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time, owner *operatorv1alpha1.AWSNodeManager) bool {
+func shouldIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time, owner *operatorv1alpha1.AWSNodeManager) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherScheduled {
-		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not increase", refresher.Status.Phase)
+		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not increase", refresher.Status.Phase)
 		return false
 	}
 	if owner.Status.Phase == operatorv1alpha1.AWSNodeManagerReplenishing {
-		klog.Info("Now replenishing, so skip refresh")
+		klog.Info(ctx, "Now replenishing, so skip refresh")
 		return false
 	}
 	if refresher.Status.NextUpdateTime.Before(now) {
@@ -52,13 +52,13 @@ func shouldIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Ti
 
 func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, error) {
 	now := metav1.Now()
-	if !shouldRetryIncrease(refresher, &now) {
+	if !shouldRetryIncrease(ctx, refresher, &now) {
 		return false, nil
 	}
 
 	refresher.Status.LastASGModifiedTime = &now
 	if err := r.Client.Update(ctx, refresher); err != nil {
-		klog.Errorf("failed to update refresher: %v", err)
+		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return false, err
 	}
 
@@ -71,16 +71,16 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 	return true, err
 }
 
-func shouldRetryIncrease(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
+func shouldRetryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateIncreasing {
-		klog.Warningf("AWSNodeRefresher phase is not matched: %s, so should not retry to increase", refresher.Status.Phase)
+		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not retry to increase", refresher.Status.Phase)
 		return false
 	}
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {
 		if now.Time.After(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
 			return true
 		}
-		klog.Info("Waiting cooltime")
+		klog.Info(ctx, "Waiting cooltime")
 	}
 	return false
 }

@@ -4,14 +4,15 @@ import (
 	"context"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *NodeManagerReconciler) syncWorkerAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, workerNodes []*corev1.Node) (*operatorv1alpha1.AWSNodeManager, error) {
-	klog.Info("checking if an existing AWSNodeManager for worker")
+	klog.Info(ctx, "checking if an existing AWSNodeManager for worker")
 	if nodeManager.Status.WorkerAWSNodeManager == nil {
 		return r.createAWSNodeManager(ctx, nodeManager, workerNodes, operatorv1alpha1.Worker)
 	}
@@ -25,11 +26,11 @@ func (r *NodeManagerReconciler) syncWorkerAWSNodeManager(ctx context.Context, no
 		&existingAWSNodeManager,
 	)
 	if apierrors.IsNotFound(err) {
-		klog.Info("AWSNodeManager for worker does not exist, so create it")
+		klog.Info(ctx, "AWSNodeManager for worker does not exist, so create it")
 		return r.createAWSNodeManager(ctx, nodeManager, workerNodes, operatorv1alpha1.Worker)
 	}
 	if err != nil {
-		klog.Errorf("failed to get AWSNodeManager for worker :%v", err)
+		klog.Errorf(ctx, "failed to get AWSNodeManager for worker :%v", err)
 		return nil, err
 	}
 

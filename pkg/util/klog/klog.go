@@ -12,7 +12,7 @@ func Info(ctx context.Context, args ...interface{}) {
 	rv := ctx.Value(pkgctx.RequestIDKey)
 	requestID, ok := rv.(string)
 	if !ok {
-		klog.Info(args)
+		klog.Info(args...)
 		return
 	}
 	cv := ctx.Value(pkgctx.ControllerKey)
@@ -28,7 +28,7 @@ func Infof(ctx context.Context, format string, args ...interface{}) {
 	rv := ctx.Value(pkgctx.RequestIDKey)
 	requestID, ok := rv.(string)
 	if !ok {
-		klog.Infof(format, args)
+		klog.Infof(format, args...)
 		return
 	}
 	cv := ctx.Value(pkgctx.ControllerKey)
@@ -44,7 +44,7 @@ func Warning(ctx context.Context, args ...interface{}) {
 	rv := ctx.Value(pkgctx.RequestIDKey)
 	requestID, ok := rv.(string)
 	if !ok {
-		klog.Warning(args)
+		klog.Warning(args...)
 		return
 	}
 	cv := ctx.Value(pkgctx.ControllerKey)
@@ -60,7 +60,7 @@ func Warningf(ctx context.Context, format string, args ...interface{}) {
 	rv := ctx.Value(pkgctx.RequestIDKey)
 	requestID, ok := rv.(string)
 	if !ok {
-		klog.Warningf(format, args)
+		klog.Warningf(format, args...)
 		return
 	}
 	cv := ctx.Value(pkgctx.ControllerKey)
@@ -76,7 +76,7 @@ func Error(ctx context.Context, args ...interface{}) {
 	rv := ctx.Value(pkgctx.RequestIDKey)
 	requestID, ok := rv.(string)
 	if !ok {
-		klog.Error(args)
+		klog.Error(args...)
 		return
 	}
 	cv := ctx.Value(pkgctx.ControllerKey)
@@ -92,7 +92,7 @@ func Errorf(ctx context.Context, format string, args ...interface{}) {
 	rv := ctx.Value(pkgctx.RequestIDKey)
 	requestID, ok := rv.(string)
 	if !ok {
-		klog.Errorf(format, args)
+		klog.Errorf(format, args...)
 		return
 	}
 	cv := ctx.Value(pkgctx.ControllerKey)

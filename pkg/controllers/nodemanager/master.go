@@ -4,15 +4,15 @@ import (
 	"context"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *NodeManagerReconciler) syncMasterAWSNodeManager(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, masterNodes []*corev1.Node) (*operatorv1alpha1.AWSNodeManager, error) {
-	klog.Info("checking if an existing AWSNodeManager for master")
+	klog.Info(ctx, "checking if an existing AWSNodeManager for master")
 	if nodeManager.Status.MasterAWSNodeManager == nil {
 		return r.createAWSNodeManager(ctx, nodeManager, masterNodes, operatorv1alpha1.Master)
 	}
@@ -26,11 +26,11 @@ func (r *NodeManagerReconciler) syncMasterAWSNodeManager(ctx context.Context, no
 		&existingAWSNodeManager,
 	)
 	if apierrors.IsNotFound(err) {
-		klog.Info("AWSNodeManager for master does not exist, so create it")
+		klog.Info(ctx, "AWSNodeManager for master does not exist, so create it")
 		return r.createAWSNodeManager(ctx, nodeManager, masterNodes, operatorv1alpha1.Master)
 	}
 	if err != nil {
-		klog.Errorf("failed to get AWSNodeManager for master :%v", err)
+		klog.Errorf(ctx, "failed to get AWSNodeManager for master :%v", err)
 		return nil, err
 	}
 
