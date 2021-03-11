@@ -51,6 +51,10 @@ type NodeManagerReconciler struct {
 
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=nodemanagers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=nodemanagers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnodemanagers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnodemanagers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 func (r *NodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("nodemanager", req.NamespacedName)
