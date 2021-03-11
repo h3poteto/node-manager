@@ -43,7 +43,7 @@ spec:
           spec:
             description: AWSNodeManagerSpec defines the desired state of AWSNodeManager
             properties:
-              asgModfyCoolTimeSeconds:
+              asgModifyCoolTimeSeconds:
                 format: int64
                 type: integer
               autoScalingGroups:
@@ -68,7 +68,7 @@ spec:
               role:
                 type: string
             required:
-            - asgModfyCoolTimeSeconds
+            - asgModifyCoolTimeSeconds
             - autoScalingGroups
             - desired
             - enableReplenish

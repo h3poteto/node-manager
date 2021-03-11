@@ -42,7 +42,7 @@ spec:
                   masters:
                     nullable: true
                     properties:
-                      asgModfyCoolTimeSeconds:
+                      asgModifyCoolTimeSeconds:
                         format: int64
                         type: integer
                       autoScalingGroups:
@@ -64,7 +64,7 @@ spec:
                         nullable: true
                         type: string
                     required:
-                    - asgModfyCoolTimeSeconds
+                    - asgModifyCoolTimeSeconds
                     - autoScalingGroups
                     - desired
                     - enableReplenish
@@ -75,7 +75,7 @@ spec:
                   workers:
                     nullable: true
                     properties:
-                      asgModfyCoolTimeSeconds:
+                      asgModifyCoolTimeSeconds:
                         format: int64
                         type: integer
                       autoScalingGroups:
@@ -97,7 +97,7 @@ spec:
                         nullable: true
                         type: string
                     required:
-                    - asgModfyCoolTimeSeconds
+                    - asgModifyCoolTimeSeconds
                     - autoScalingGroups
                     - desired
                     - enableReplenish

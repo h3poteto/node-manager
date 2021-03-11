@@ -9,7 +9,7 @@ spec:
     region: ap-northeast-1
     workers:
       desired: 2
-      asgModfyCoolTimeSeconds: 600
+      asgModifyCoolTimeSeconds: 600
       refreshSchedule: "59 0 * * *"
       enableReplenish: true
       autoScalingGroups:
