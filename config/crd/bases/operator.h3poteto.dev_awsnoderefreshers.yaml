@@ -43,7 +43,7 @@ spec:
           spec:
             description: AWSNodeRefresherSpec defines the desired state of AWSNodeRefresher
             properties:
-              asgModfyCoolTimeSeconds:
+              asgModifyCoolTimeSeconds:
                 format: int64
                 type: integer
               autoScalingGroups:
@@ -65,7 +65,7 @@ spec:
               schedule:
                 type: string
             required:
-            - asgModfyCoolTimeSeconds
+            - asgModifyCoolTimeSeconds
             - autoScalingGroups
             - desired
             - region

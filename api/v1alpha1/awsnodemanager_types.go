@@ -35,7 +35,7 @@ type AWSNodeManagerSpec struct {
 	Desired int32 `json:"desired"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=integer
-	ASGModifyCoolTimeSeconds int64 `json:"asgModfyCoolTimeSeconds"`
+	ASGModifyCoolTimeSeconds int64 `json:"asgModifyCoolTimeSeconds"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type:=string
 	Role NodeRole `json:"role"`
