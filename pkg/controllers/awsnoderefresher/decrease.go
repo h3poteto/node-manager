@@ -24,6 +24,7 @@ func (r *AWSNodeRefresherReconciler) refreshDecrease(ctx context.Context, refres
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
+	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Decrease instance", "Decrease instance in ASG for refresh")
 
 	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
 	return cloud.DeleteInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired), len(refresher.Status.AWSNodes))

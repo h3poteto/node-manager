@@ -8,6 +8,7 @@ import (
 	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,6 +30,7 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
+	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Replace instance", "Replace instance in ASG for refresh")
 
 	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
 	return cloud.DeleteInstance(target)
@@ -70,5 +72,6 @@ func (r *AWSNodeRefresherReconciler) refreshNextReplace(ctx context.Context, ref
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
+	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Start next replace", "Start to next replace in ASG")
 	return nil
 }

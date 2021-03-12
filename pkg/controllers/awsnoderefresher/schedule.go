@@ -8,6 +8,7 @@ import (
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	"github.com/gorhill/cronexpr"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,5 +22,6 @@ func (r *AWSNodeRefresherReconciler) scheduleNext(ctx context.Context, refresher
 		klog.Errorf(ctx, "failed to update AWSNodeRefresher %s/%s: %v", refresher.Namespace, refresher.Name, err)
 		return err
 	}
+	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Schedule next", "Update refresh schedule for next refresh")
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,6 +20,7 @@ func (r *AWSNodeRefresherReconciler) refreshAWSWait(ctx context.Context, refresh
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
+	r.Recorder.Eventf(refresher, corev1.EventTypeNormal, "Start aws wait", "Start to wait until AWS operation")
 	return nil
 }
 
