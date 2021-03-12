@@ -39,11 +39,15 @@ func (r *AWSNodeRefresherReconciler) stillWaiting(ctx context.Context, refresher
 		klog.Info(ctx, "Waiting cooltime")
 		return true
 	}
+	return false
+}
+
+func (r *AWSNodeRefresherReconciler) enoughInstances(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {
 		klog.Infof(ctx, "Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 func (r *AWSNodeRefresherReconciler) allReplaced(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {

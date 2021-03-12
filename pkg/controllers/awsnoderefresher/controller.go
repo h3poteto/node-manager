@@ -112,13 +112,20 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 		if r.stillWaiting(ctx, refresher) {
 			return nil
 		}
-		klog.Infof(ctx, "finish waiting")
+		if !r.enoughInstances(ctx, refresher) {
+			return nil
+		}
+		klog.Info(ctx, "finish waiting")
 		if r.allReplaced(ctx, refresher) {
 			return r.refreshDecrease(ctx, refresher)
 		} else {
 			return r.refreshNextReplace(ctx, refresher)
 		}
 	case operatorv1alpha1.AWSNodeRefresherUpdateDecreasing:
+		if r.stillWaiting(ctx, refresher) {
+			return nil
+		}
+		klog.Info(ctx, "finish waiting")
 		retried, err := r.retryDecrease(ctx, refresher)
 		if err != nil {
 			return err
