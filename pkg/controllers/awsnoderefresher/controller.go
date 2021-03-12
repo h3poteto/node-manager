@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
@@ -47,14 +49,14 @@ type AWSNodeRefresherReconciler struct {
 
 func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnoderefresher", req.NamespacedName)
-	ctx = pkgctx.SetController(ctx, "nodemanager")
+	ctx = pkgctx.SetController(ctx, "awsnoderefresher")
 	id, err := requestid.RequestID()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 	ctx = pkgctx.SetRequestID(ctx, id)
 
-	klog.Info(ctx, "fetching AWSNodeRefresher", req.NamespacedName)
+	klog.Infof(ctx, "fetching AWSNodeRefresher %s", req.NamespacedName)
 	refresher := operatorv1alpha1.AWSNodeRefresher{}
 	if err := r.Client.Get(ctx, req.NamespacedName, &refresher); err != nil {
 		klog.Infof(ctx, "failed to get AWSNodeRefresher resources: %v", err)
@@ -75,8 +77,17 @@ func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (r *AWSNodeRefresherReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	external := newExternalEventWatcher()
+	err := mgr.Add(external)
+	if err != nil {
+		return err
+	}
+	src := source.Channel{
+		Source: external.channel,
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeRefresher{}).
+		Watches(&src, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
