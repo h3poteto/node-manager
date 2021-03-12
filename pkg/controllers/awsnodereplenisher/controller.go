@@ -56,7 +56,7 @@ type AWSNodeReplenisherReconciler struct {
 
 func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnodereplenisher", req.NamespacedName)
-	ctx = pkgctx.SetController(ctx, "nodemanager")
+	ctx = pkgctx.SetController(ctx, "awsnodereplenisher")
 	id, err := requestid.RequestID()
 	if err != nil {
 		return ctrl.Result{}, err

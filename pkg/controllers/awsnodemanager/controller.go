@@ -53,7 +53,7 @@ type AWSNodeManagerReconciler struct {
 
 func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnodemanager", req.NamespacedName)
-	ctx = pkgctx.SetController(ctx, "nodemanager")
+	ctx = pkgctx.SetController(ctx, "awsnodemanager")
 	id, err := requestid.RequestID()
 	if err != nil {
 		return ctrl.Result{}, err
