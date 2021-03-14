@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
@@ -30,6 +31,7 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
+	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Increase instance", "Increase instance to ASG for refresh")
 
 	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
 	return cloud.AddInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired)+1, len(refresher.Status.AWSNodes))
@@ -61,6 +63,7 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return false, err
 	}
+	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Retry increase", "Retry to increase instance to ASG for refresh")
 
 	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
 	err := cloud.AddInstancesToAutoScalingGroups(

@@ -7,6 +7,7 @@ import (
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,6 +20,7 @@ func (r *AWSNodeRefresherReconciler) refreshAWSWait(ctx context.Context, refresh
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
 	}
+	r.Recorder.Eventf(refresher, corev1.EventTypeNormal, "Start aws wait", "Start to wait until AWS operation")
 	return nil
 }
 
@@ -39,11 +41,15 @@ func (r *AWSNodeRefresherReconciler) stillWaiting(ctx context.Context, refresher
 		klog.Info(ctx, "Waiting cooltime")
 		return true
 	}
+	return false
+}
+
+func (r *AWSNodeRefresherReconciler) enoughInstances(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {
 		klog.Infof(ctx, "Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 func (r *AWSNodeRefresherReconciler) allReplaced(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
