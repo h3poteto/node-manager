@@ -74,6 +74,7 @@ func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if err := r.syncAWSNodeManager(ctx, &awsNodeManager); err != nil {
 		klog.Errorf(ctx, "failed to sync AWSNodeManager: %v", err)
+		r.Recorder.Eventf(&awsNodeManager, corev1.EventTypeWarning, "Error", "Failed to sync: %v", err)
 		return ctrl.Result{}, err
 	}
 

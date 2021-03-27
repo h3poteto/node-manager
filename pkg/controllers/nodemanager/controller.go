@@ -71,6 +71,7 @@ func (r *NodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	klog.Infof(ctx, "fetching NodeManager resources: %s", req.NamespacedName.Name)
 	if err := r.Client.Get(ctx, req.NamespacedName, &nodeManager); err == nil {
 		err := r.syncNodeManager(ctx, &nodeManager)
+		r.Recorder.Eventf(&nodeManager, corev1.EventTypeWarning, "Error", "Failed to sync: %v", err)
 		return ctrl.Result{}, err
 	}
 	if err := r.syncNode(ctx, req.NamespacedName); err != nil {

@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -70,6 +71,7 @@ func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if err := r.syncRefresher(ctx, &refresher); err != nil {
 		klog.Errorf(ctx, "failed to sync AWSNodeRefresher: %v", err)
+		r.Recorder.Eventf(&refresher, corev1.EventTypeWarning, "Error", "Failed to sync: %v", err)
 		return ctrl.Result{}, err
 	}
 
