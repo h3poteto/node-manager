@@ -77,6 +77,7 @@ func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	if err := r.syncReplenisher(ctx, &replenisher); err != nil {
 		klog.Errorf(ctx, "failed to sync AWSNodeReplenisher: %v", err)
+		r.Recorder.Eventf(&replenisher, corev1.EventTypeWarning, "Error", "Failed to sync: %v", err)
 		return ctrl.Result{}, err
 	}
 
