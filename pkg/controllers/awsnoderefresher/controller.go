@@ -109,6 +109,13 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 		}
 		return r.refreshReplace(ctx, refresher)
 	case operatorv1alpha1.AWSNodeRefresherUpdateReplacing:
+		retried, err := r.retryReplace(ctx, refresher)
+		if err != nil {
+			return err
+		}
+		if retried {
+			return nil
+		}
 		return r.refreshAWSWait(ctx, refresher)
 	case operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting:
 		if r.stillWaiting(ctx, refresher) {
