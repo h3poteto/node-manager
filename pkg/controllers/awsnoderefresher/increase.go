@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
-	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 )
 
@@ -33,8 +32,7 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Increase instance", "Increase instance to ASG for refresh")
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	return cloud.AddInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired)+1, len(refresher.Status.AWSNodes))
+	return r.cloud.AddInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired)+1, len(refresher.Status.AWSNodes))
 }
 
 func shouldIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time, owner *operatorv1alpha1.AWSNodeManager) bool {
@@ -65,8 +63,7 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Retry increase", "Retry to increase instance to ASG for refresh")
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	err := cloud.AddInstancesToAutoScalingGroups(
+	err := r.cloud.AddInstancesToAutoScalingGroups(
 		refresher.Spec.AutoScalingGroups,
 		int(refresher.Spec.Desired)+IncreaseInstanceCount,
 		len(refresher.Status.AWSNodes),

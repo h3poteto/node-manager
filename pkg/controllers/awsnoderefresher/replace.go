@@ -7,7 +7,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
-	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +33,7 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Replace instance", "Replace instance in ASG for refresh")
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	return cloud.DeleteInstance(target)
+	return r.cloud.DeleteInstance(target)
 }
 
 func shouldReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
@@ -93,8 +91,7 @@ func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Retry replace", "Retry to replace instance in ASG for refresh")
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	err := cloud.DeleteInstance(target)
+	err := r.cloud.DeleteInstance(target)
 	return true, err
 }
 
@@ -104,8 +101,7 @@ func (r *AWSNodeRefresherReconciler) shouldRetryReplace(ctx context.Context, ref
 		return false
 	}
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	instance, err := cloud.DescribeInstance(refresher.Status.ReplaceTargetNode)
+	instance, err := r.cloud.DescribeInstance(refresher.Status.ReplaceTargetNode)
 	if err != nil {
 		klog.Warning(ctx, err)
 		return false

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
-	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 
 	corev1 "k8s.io/api/core/v1"
@@ -26,8 +25,7 @@ func (r *AWSNodeRefresherReconciler) refreshDecrease(ctx context.Context, refres
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Decrease instance", "Decrease instance in ASG for refresh")
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	return cloud.DeleteInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired), len(refresher.Status.AWSNodes))
+	return r.cloud.DeleteInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired), len(refresher.Status.AWSNodes))
 }
 
 func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
@@ -55,8 +53,7 @@ func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refreshe
 	}
 	r.Recorder.Eventf(refresher, corev1.EventTypeNormal, "Retry decrease", "Retry to decrease instances for AWSNodeRefresher %s/%s", refresher.Namespace, refresher.Name)
 
-	cloud := cloudaws.New(r.Session, refresher.Spec.Region)
-	err := cloud.DeleteInstancesToAutoScalingGroups(
+	err := r.cloud.DeleteInstancesToAutoScalingGroups(
 		refresher.Spec.AutoScalingGroups,
 		int(refresher.Spec.Desired),
 		len(refresher.Status.AWSNodes),

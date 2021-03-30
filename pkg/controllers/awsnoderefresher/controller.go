@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 	"github.com/h3poteto/node-manager/pkg/util/requestid"
@@ -41,7 +42,7 @@ type AWSNodeRefresherReconciler struct {
 	Log      logr.Logger
 	Recorder record.EventRecorder
 	Scheme   *runtime.Scheme
-	Session  *session.Session
+	cloud    *cloudaws.AWS
 }
 
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnoderefreshers,verbs=get;list;watch;create;update;patch;delete
@@ -65,9 +66,10 @@ func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	// Generate aws client
-	r.Session = session.Must(session.NewSessionWithOptions(session.Options{
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
+	r.cloud = cloudaws.New(sess, refresher.Spec.Region)
 
 	if err := r.syncRefresher(ctx, &refresher); err != nil {
 		klog.Errorf(ctx, "failed to sync AWSNodeRefresher: %v", err)
@@ -109,6 +111,9 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 		}
 		return r.refreshReplace(ctx, refresher)
 	case operatorv1alpha1.AWSNodeRefresherUpdateReplacing:
+		if r.replaceWait(ctx, refresher) {
+			return nil
+		}
 		retried, err := r.retryReplace(ctx, refresher)
 		if err != nil {
 			return err
