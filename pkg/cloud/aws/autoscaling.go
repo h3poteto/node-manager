@@ -19,7 +19,7 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: asgNameList,
 	}
-	output, err := a.autoscaling.DescribeAutoScalingGroups(input)
+	output, err := a.Autoscaling.DescribeAutoScalingGroups(input)
 	if err != nil {
 		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
 		return err
@@ -85,7 +85,7 @@ func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoS
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: asgNameList,
 	}
-	output, err := a.autoscaling.DescribeAutoScalingGroups(input)
+	output, err := a.Autoscaling.DescribeAutoScalingGroups(input)
 	if err != nil {
 		klog.Errorf("failed to describe AutoScalingGroups: %v", err)
 		return err
@@ -181,7 +181,7 @@ func (a *AWS) updateASGCapacity(asg *autoscaling.Group, newDesired int) error {
 		AutoScalingGroupName: asg.AutoScalingGroupName,
 		DesiredCapacity:      aws.Int64(int64(newDesired)),
 	}
-	_, err := a.autoscaling.UpdateAutoScalingGroup(updateInput)
+	_, err := a.Autoscaling.UpdateAutoScalingGroup(updateInput)
 	if err != nil {
 		klog.Errorf("failed to update AutoScalingGroups: %v", err)
 		return err

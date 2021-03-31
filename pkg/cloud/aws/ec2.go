@@ -26,7 +26,7 @@ func (a *AWS) ReflectInstancesInformation(awsNodeManager *operatorv1alpha1.AWSNo
 				},
 			},
 		}
-		output, err := a.ec2.DescribeInstances(input)
+		output, err := a.EC2.DescribeInstances(input)
 		if err != nil {
 			klog.Errorf("failed to describe aws instances: %v", err)
 			return err
@@ -66,7 +66,7 @@ func (a *AWS) DeleteInstance(node *operatorv1alpha1.AWSNode) error {
 			aws.String(node.InstanceID),
 		},
 	}
-	_, err := a.ec2.TerminateInstances(input)
+	_, err := a.EC2.TerminateInstances(input)
 	if err != nil {
 		klog.Errorf("failed to terminate instance %s: %v", node.InstanceID, err)
 		return err
@@ -86,7 +86,7 @@ func (a *AWS) DescribeInstance(node *operatorv1alpha1.AWSNode) (*ec2.Instance, e
 			},
 		},
 	}
-	output, err := a.ec2.DescribeInstances(input)
+	output, err := a.EC2.DescribeInstances(input)
 	if err != nil {
 		klog.Errorf("failed to describe aws instances: %v", err)
 		return nil, err

@@ -10,15 +10,15 @@ import (
 )
 
 type AWS struct {
-	ec2         ec2iface.EC2API
-	autoscaling autoscalingiface.AutoScalingAPI
+	EC2         ec2iface.EC2API
+	Autoscaling autoscalingiface.AutoScalingAPI
 }
 
 func New(sess *session.Session, region string) *AWS {
 	e := ec2.New(sess, aws.NewConfig().WithRegion(region))
 	asg := autoscaling.New(sess, aws.NewConfig().WithRegion(region))
 	return &AWS{
-		autoscaling: asg,
-		ec2:         e,
+		Autoscaling: asg,
+		EC2:         e,
 	}
 }

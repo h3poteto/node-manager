@@ -78,7 +78,7 @@ func (r *AWSNodeRefresherReconciler) refreshNextReplace(ctx context.Context, ref
 
 func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, error) {
 	now := metav1.Now()
-	if !r.shouldRetryReplace(ctx, refresher, &now) {
+	if !r.shouldRetryReplace(ctx, refresher) {
 		return false, nil
 	}
 	target := refresher.Status.ReplaceTargetNode
@@ -95,7 +95,7 @@ func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher
 	return true, err
 }
 
-func (r *AWSNodeRefresherReconciler) shouldRetryReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
+func (r *AWSNodeRefresherReconciler) shouldRetryReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateReplacing {
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not retry to replace", refresher.Status.Phase)
 		return false
