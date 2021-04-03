@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *NodeManagerReconciler) reflectNodes(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager, masterNodes, workerNodes []*corev1.Node) (bool, error) {
@@ -99,8 +98,7 @@ func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types
 	sort.SliceStable(status.WorkerNodes, func(i, j int) bool { return status.WorkerNodes[i] < status.WorkerNodes[j] })
 	if reflect.DeepEqual(status.MasterNodes, masterNames) && reflect.DeepEqual(status.WorkerNodes, workerNames) {
 		klog.Info(ctx, "all nodes are already synced in nodeManager status")
-		// AWSNodeManager have to handle updating node event, because sometimes it have to check current state of instance in order to add/delete instances.
-		return r.updateAWSNodeManagerRevision(ctx, &nodeManager)
+		return nil
 	}
 	status.MasterNodes = masterNames
 	status.WorkerNodes = workerNames
@@ -112,50 +110,6 @@ func (r *NodeManagerReconciler) syncNode(ctx context.Context, resourceName types
 		return err
 	}
 	klog.Infof(ctx, "success to update nodeManager status %s/%s for all nodes", nodeManager.Namespace, nodeManager.Name)
-	return nil
-}
-
-func (r *NodeManagerReconciler) updateAWSNodeManagerRevision(ctx context.Context, nodeManager *operatorv1alpha1.NodeManager) error {
-	if nodeManager.Status.MasterAWSNodeManager != nil {
-		awsNodeManager := operatorv1alpha1.AWSNodeManager{}
-		if err := r.Client.Get(
-			ctx,
-			client.ObjectKey{
-				Namespace: nodeManager.Status.MasterAWSNodeManager.Namespace,
-				Name:      nodeManager.Status.MasterAWSNodeManager.Name,
-			},
-			&awsNodeManager,
-		); err != nil {
-			klog.Errorf(ctx, "failed to get aws node manager for master: %v", err)
-			return err
-		}
-		awsNodeManager.Status.Revision += 1
-		klog.Infof(ctx, "updating revision for aws node manager %s/%s", awsNodeManager.Namespace, awsNodeManager.Name)
-		if err := r.Client.Update(ctx, &awsNodeManager); err != nil {
-			klog.Errorf(ctx, "failed to update aws node manager %s/%s: %v", awsNodeManager.Namespace, awsNodeManager.Name, err)
-			return err
-		}
-	}
-	if nodeManager.Status.WorkerAWSNodeManager != nil {
-		awsNodeManager := operatorv1alpha1.AWSNodeManager{}
-		if err := r.Client.Get(
-			ctx,
-			client.ObjectKey{
-				Namespace: nodeManager.Status.WorkerAWSNodeManager.Namespace,
-				Name:      nodeManager.Status.WorkerAWSNodeManager.Name,
-			},
-			&awsNodeManager,
-		); err != nil {
-			klog.Errorf(ctx, "failed to get aws node manager for worker: %v", err)
-			return err
-		}
-		awsNodeManager.Status.Revision += 1
-		klog.Infof(ctx, "updating revision for aws node manager %s/%s", awsNodeManager.Namespace, awsNodeManager.Name)
-		if err := r.Client.Update(ctx, &awsNodeManager); err != nil {
-			klog.Errorf(ctx, "failed to update aws node manager %s/%s: %v", awsNodeManager.Namespace, awsNodeManager.Name, err)
-			return err
-		}
-	}
 	return nil
 }
 
