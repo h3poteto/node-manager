@@ -79,7 +79,7 @@ func TestGetInstanceInformation(t *testing.T) {
 	}
 
 	a := &AWS{
-		ec2: mocked,
+		EC2: mocked,
 	}
 
 	if err := a.ReflectInstancesInformation(replenisher); err != nil {

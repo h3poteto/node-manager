@@ -407,7 +407,7 @@ CASE:
 			Resp: resp,
 		}
 		a := &AWS{
-			autoscaling: mocked,
+			Autoscaling: mocked,
 		}
 
 		err := a.AddInstancesToAutoScalingGroups(groups, c.specDesiredTotal, c.currentNodeCount)
@@ -848,7 +848,7 @@ CASE:
 			Resp: resp,
 		}
 		a := &AWS{
-			autoscaling: mocked,
+			Autoscaling: mocked,
 		}
 
 		err := a.DeleteInstancesToAutoScalingGroups(groups, c.specDesiredTotal, c.currentNodeCount)

@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/klog/v2"
@@ -24,7 +26,7 @@ func (a *AWS) ReflectInstancesInformation(awsNodeManager *operatorv1alpha1.AWSNo
 				},
 			},
 		}
-		output, err := a.ec2.DescribeInstances(input)
+		output, err := a.EC2.DescribeInstances(input)
 		if err != nil {
 			klog.Errorf("failed to describe aws instances: %v", err)
 			return err
@@ -64,10 +66,36 @@ func (a *AWS) DeleteInstance(node *operatorv1alpha1.AWSNode) error {
 			aws.String(node.InstanceID),
 		},
 	}
-	_, err := a.ec2.TerminateInstances(input)
+	_, err := a.EC2.TerminateInstances(input)
 	if err != nil {
 		klog.Errorf("failed to terminate instance %s: %v", node.InstanceID, err)
 		return err
 	}
 	return nil
+}
+
+func (a *AWS) DescribeInstance(node *operatorv1alpha1.AWSNode) (*ec2.Instance, error) {
+	input := &ec2.DescribeInstancesInput{
+		DryRun: nil,
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("private-dns-name"),
+				Values: []*string{
+					aws.String(node.Name),
+				},
+			},
+		},
+	}
+	output, err := a.EC2.DescribeInstances(input)
+	if err != nil {
+		klog.Errorf("failed to describe aws instances: %v", err)
+		return nil, err
+	}
+	if len(output.Reservations) < 1 || len(output.Reservations[0].Instances) < 1 {
+		err := fmt.Errorf("could not find aws instance %s", node.Name)
+		klog.Error(err)
+		return nil, err
+	}
+	instance := output.Reservations[0].Instances[0]
+	return instance, nil
 }
