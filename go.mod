@@ -3,7 +3,7 @@ module github.com/h3poteto/node-manager
 go 1.15
 
 require (
-	github.com/aws/aws-sdk-go v1.36.27
+	github.com/aws/aws-sdk-go v1.38.12
 	github.com/go-logr/logr v0.3.0
 	github.com/google/martian v2.1.0+incompatible
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
