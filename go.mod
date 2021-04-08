@@ -7,8 +7,8 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	k8s.io/api v0.19.2
-	k8s.io/apimachinery v0.19.2
+	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v0.19.2
-	k8s.io/klog/v2 v2.2.0
+	k8s.io/klog/v2 v2.8.0
 	sigs.k8s.io/controller-runtime v0.7.0
 )
