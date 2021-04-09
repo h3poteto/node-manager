@@ -39,6 +39,10 @@ type AWSNodeRefresherSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:valitation:Type:=string
 	Schedule string `json:"schedule"`
+	// +optional
+	// +kubebuilder:validation:Type:=integer
+	// +kubebuilder:default=1
+	SurplusNodes int64 `json:"surplusNodes"`
 }
 
 // AWSNodeRefresherStatus defines the observed state of AWSNodeRefresher

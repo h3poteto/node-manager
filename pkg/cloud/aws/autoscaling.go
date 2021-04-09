@@ -54,6 +54,10 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 
 	// Increase desired capacity equally across all ASGs.
 	surplus := totalDesired - currentNodesCount
+	if surplus == 0 {
+		klog.Info("Don't need to increase desired capacity, so skip it")
+		return nil
+	}
 	for surplus > 0 {
 		// Exit this loop when all ASGs capacity is fullfilled.
 		if fullfilled := allASGIsFullfilled(safetyASGs); fullfilled {

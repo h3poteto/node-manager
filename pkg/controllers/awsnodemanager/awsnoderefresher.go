@@ -108,6 +108,7 @@ func generateAWSNodeRefresher(awsNodeManager *operatorv1alpha1.AWSNodeManager) *
 			ASGModifyCoolTimeSeconds: awsNodeManager.Spec.ASGModifyCoolTimeSeconds,
 			Role:                     awsNodeManager.Spec.Role,
 			Schedule:                 awsNodeManager.Spec.RefreshSchedule,
+			SurplusNodes:             awsNodeManager.Spec.SurplusNodes,
 		},
 		Status: operatorv1alpha1.AWSNodeRefresherStatus{
 			AWSNodes: awsNodeManager.Status.AWSNodes,

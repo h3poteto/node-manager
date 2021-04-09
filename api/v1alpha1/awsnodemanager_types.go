@@ -46,6 +46,10 @@ type AWSNodeManagerSpec struct {
 	// +optional
 	// +kubebuilder:validation:Type:=string
 	RefreshSchedule string `json:"refreshSchedule"`
+	// +optional
+	// +kubebuilder:validation:Type:=integer
+	// +kubebuilder:default=1
+	SurplusNodes int64 `json:"surplusNodes"`
 }
 
 // AWSNodeManagerStatus defines the observed state of AWSNodeManager

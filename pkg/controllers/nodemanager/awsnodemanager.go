@@ -159,6 +159,7 @@ func generateMasterAWSNodeManager(nodeManager *operatorv1alpha1.NodeManager) *op
 			Role:                     operatorv1alpha1.Master,
 			EnableReplenish:          nodeManager.Spec.Aws.Masters.EnableReplenish,
 			RefreshSchedule:          nodeManager.Spec.Aws.Masters.RefreshSchedule,
+			SurplusNodes:             nodeManager.Spec.Aws.Masters.SurplusNodes,
 		},
 		Status: operatorv1alpha1.AWSNodeManagerStatus{
 			Phase: operatorv1alpha1.AWSNodeManagerInit,
@@ -185,6 +186,7 @@ func generateWorkerAWSNodeManager(nodeManager *operatorv1alpha1.NodeManager) *op
 			Role:                     operatorv1alpha1.Worker,
 			EnableReplenish:          nodeManager.Spec.Aws.Workers.EnableReplenish,
 			RefreshSchedule:          nodeManager.Spec.Aws.Workers.RefreshSchedule,
+			SurplusNodes:             nodeManager.Spec.Aws.Workers.SurplusNodes,
 		},
 		Status: operatorv1alpha1.AWSNodeManagerStatus{
 			Phase: operatorv1alpha1.AWSNodeManagerInit,
