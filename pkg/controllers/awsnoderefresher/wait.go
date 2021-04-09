@@ -16,6 +16,7 @@ func (r *AWSNodeRefresherReconciler) refreshAWSWait(ctx context.Context, refresh
 		return nil
 	}
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err

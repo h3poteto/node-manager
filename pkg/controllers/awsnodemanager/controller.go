@@ -19,6 +19,7 @@ package awsnodemanager
 import (
 	"context"
 	"reflect"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-logr/logr"
@@ -27,9 +28,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
+	"github.com/h3poteto/node-manager/pkg/util/externalevent"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 	"github.com/h3poteto/node-manager/pkg/util/requestid"
 )
@@ -82,10 +86,30 @@ func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *AWSNodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	external := externalevent.NewExternalEventWatcher(1*time.Minute, func(ctx context.Context, c client.Client) ([]client.Object, error) {
+		var managers operatorv1alpha1.AWSNodeManagerList
+		err := c.List(ctx, &managers)
+		if err != nil {
+			return nil, err
+		}
+		var list []client.Object
+		for _, o := range managers.Items {
+			list = append(list, &o)
+		}
+		return list, nil
+	})
+	err := mgr.Add(external)
+	if err != nil {
+		return err
+	}
+	src := source.Channel{
+		Source: external.Channel,
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeManager{}).
 		Owns(&operatorv1alpha1.AWSNodeReplenisher{}).
 		Owns(&operatorv1alpha1.AWSNodeRefresher{}).
+		Watches(&src, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
