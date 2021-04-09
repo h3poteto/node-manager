@@ -11,8 +11,6 @@ import (
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 )
 
-const IncreaseInstanceCount int = 1
-
 func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
 	owner, err := r.ownerAWSNodeManager(ctx, refresher)
 	if err != nil {
@@ -67,7 +65,7 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 
 	err := r.cloud.AddInstancesToAutoScalingGroups(
 		refresher.Spec.AutoScalingGroups,
-		int(refresher.Spec.Desired)+IncreaseInstanceCount,
+		int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes),
 		len(refresher.Status.AWSNodes),
 	)
 	return true, err
@@ -78,7 +76,7 @@ func shouldRetryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNod
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not retry to increase", refresher.Status.Phase)
 		return false
 	}
-	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {
+	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes) {
 		if now.Time.After(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
 			return true
 		}

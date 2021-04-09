@@ -42,8 +42,8 @@ func shouldReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefre
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not replace", refresher.Status.Phase)
 		return false
 	}
-	if len(refresher.Status.AWSNodes) != int(refresher.Spec.Desired)+IncreaseInstanceCount {
-		klog.Infof(ctx, "Node is not enough, current: %d, desired: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
+	if len(refresher.Status.AWSNodes) != int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes) {
+		klog.Infof(ctx, "Node is not enough, current: %d, desired: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, refresher.Spec.SurplusNodes)
 		return false
 	}
 	return true

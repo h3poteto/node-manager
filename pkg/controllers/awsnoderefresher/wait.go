@@ -46,8 +46,8 @@ func (r *AWSNodeRefresherReconciler) stillWaiting(ctx context.Context, refresher
 }
 
 func (r *AWSNodeRefresherReconciler) enoughInstances(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
-	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+IncreaseInstanceCount {
-		klog.Infof(ctx, "Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, IncreaseInstanceCount)
+	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes) {
+		klog.Infof(ctx, "Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, refresher.Spec.SurplusNodes)
 		return false
 	}
 	return true
