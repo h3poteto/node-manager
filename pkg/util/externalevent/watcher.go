@@ -1,4 +1,4 @@
-package awsnoderefresher
+package externalevent
 
 import (
 	"context"
@@ -6,20 +6,24 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-
-	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 )
 
 type externalEventWatcher struct {
-	channel chan event.GenericEvent
-	client  client.Client
+	Channel  chan event.GenericEvent
+	client   client.Client
+	interval time.Duration
+	fn       ListFunc
 }
 
-func newExternalEventWatcher() *externalEventWatcher {
+type ListFunc = func(ctx context.Context, c client.Client) ([]client.Object, error)
+
+func NewExternalEventWatcher(interval time.Duration, listFn ListFunc) *externalEventWatcher {
 	ch := make(chan event.GenericEvent)
 
 	return &externalEventWatcher{
-		channel: ch,
+		Channel:  ch,
+		interval: interval,
+		fn:       listFn,
 	}
 }
 
@@ -29,7 +33,7 @@ func (e *externalEventWatcher) InjectClient(c client.Client) error {
 }
 
 func (e *externalEventWatcher) Start(ctx context.Context) error {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(e.interval)
 	defer ticker.Stop()
 
 	for {
@@ -37,14 +41,13 @@ func (e *externalEventWatcher) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			var refreshers operatorv1alpha1.AWSNodeRefresherList
-			err := e.client.List(ctx, &refreshers)
+			list, err := e.fn(ctx, e.client)
 			if err != nil {
 				break
 			}
-			for _, ref := range refreshers.Items {
-				e.channel <- event.GenericEvent{
-					Object: &ref,
+			for _, ref := range list {
+				e.Channel <- event.GenericEvent{
+					Object: ref,
 				}
 			}
 		}

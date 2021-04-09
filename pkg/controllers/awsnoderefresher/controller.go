@@ -18,6 +18,7 @@ package awsnoderefresher
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-logr/logr"
@@ -32,6 +33,7 @@ import (
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
+	"github.com/h3poteto/node-manager/pkg/util/externalevent"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 	"github.com/h3poteto/node-manager/pkg/util/requestid"
 )
@@ -81,13 +83,24 @@ func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (r *AWSNodeRefresherReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	external := newExternalEventWatcher()
+	external := externalevent.NewExternalEventWatcher(5*time.Minute, func(ctx context.Context, c client.Client) ([]client.Object, error) {
+		var refreshers operatorv1alpha1.AWSNodeRefresherList
+		err := c.List(ctx, &refreshers)
+		if err != nil {
+			return nil, err
+		}
+		var list []client.Object
+		for _, o := range refreshers.Items {
+			list = append(list, &o)
+		}
+		return list, nil
+	})
 	err := mgr.Add(external)
 	if err != nil {
 		return err
 	}
 	src := source.Channel{
-		Source: external.channel,
+		Source: external.Channel,
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeRefresher{}).
