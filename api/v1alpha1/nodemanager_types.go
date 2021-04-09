@@ -91,6 +91,10 @@ type Nodes struct {
 	// +nullable
 	// +kubebuilder:validation:Type:=string
 	RefreshSchedule string `json:"refreshSchedule"`
+	// +optional
+	// +kubebuilder:validation:Type:=integer
+	// +kubebuilder:default=1
+	SurplusNodes int64 `json:"surplusNodes"`
 }
 
 type AutoScalingGroup struct {

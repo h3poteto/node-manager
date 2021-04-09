@@ -64,6 +64,10 @@ spec:
                 type: string
               schedule:
                 type: string
+              surplusNodes:
+                default: 1
+                format: int64
+                type: integer
             required:
             - asgModifyCoolTimeSeconds
             - autoScalingGroups
