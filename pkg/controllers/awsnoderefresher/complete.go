@@ -16,6 +16,7 @@ func (r *AWSNodeRefresherReconciler) refreshComplete(ctx context.Context, refres
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherCompleted
 	refresher.Status.UpdateStartTime = nil
 	refresher.Status.ReplaceTargetNode = nil
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err

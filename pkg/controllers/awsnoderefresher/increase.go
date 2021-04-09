@@ -26,6 +26,7 @@ func (r *AWSNodeRefresherReconciler) refreshIncrease(ctx context.Context, refres
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateIncreasing
 	refresher.Status.UpdateStartTime = &now
 	refresher.Status.LastASGModifiedTime = &now
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
@@ -57,6 +58,7 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 	}
 
 	refresher.Status.LastASGModifiedTime = &now
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return false, err

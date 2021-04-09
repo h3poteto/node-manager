@@ -27,6 +27,7 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateReplacing
 	refresher.Status.LastASGModifiedTime = &now
 	refresher.Status.ReplaceTargetNode = target
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
@@ -68,6 +69,7 @@ func findDeleteTarget(nodes []operatorv1alpha1.AWSNode) (*operatorv1alpha1.AWSNo
 
 func (r *AWSNodeRefresherReconciler) refreshNextReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateIncreasing
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return err
@@ -85,6 +87,7 @@ func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateReplacing
 	refresher.Status.LastASGModifiedTime = &now
 	refresher.Status.ReplaceTargetNode = target
+	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
 		return false, err
