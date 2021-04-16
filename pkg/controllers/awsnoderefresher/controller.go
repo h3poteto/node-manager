@@ -115,9 +115,12 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 	case operatorv1alpha1.AWSNodeRefresherScheduled:
 		return r.refreshIncrease(ctx, refresher)
 	case operatorv1alpha1.AWSNodeRefresherUpdateIncreasing:
-		retried, err := r.retryIncrease(ctx, refresher)
+		waiting, retried, err := r.retryIncrease(ctx, refresher)
 		if err != nil {
 			return err
+		}
+		if waiting {
+			return nil
 		}
 		if retried {
 			return nil

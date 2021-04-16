@@ -49,17 +49,20 @@ func shouldIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefr
 	return false
 }
 
-func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, error) {
+func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, bool, error) {
 	now := metav1.Now()
+	if waitingIncrease(ctx, refresher, &now) {
+		return true, false, nil
+	}
 	if !shouldRetryIncrease(ctx, refresher, &now) {
-		return false, nil
+		return false, false, nil
 	}
 
 	refresher.Status.LastASGModifiedTime = &now
 	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
-		return false, err
+		return false, false, err
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Retry increase", "Retry to increase instance to ASG for refresh")
 
@@ -68,7 +71,18 @@ func (r *AWSNodeRefresherReconciler) retryIncrease(ctx context.Context, refreshe
 		int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes),
 		len(refresher.Status.AWSNodes),
 	)
-	return true, err
+	return false, true, err
+}
+
+func waitingIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
+	if len(refresher.Status.AWSNodes) >= int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes) {
+		return false
+	}
+	if now.Time.After(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
+		return false
+	}
+	klog.Info(ctx, "Waiting cooltime")
+	return true
 }
 
 func shouldRetryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
@@ -77,10 +91,7 @@ func shouldRetryIncrease(ctx context.Context, refresher *operatorv1alpha1.AWSNod
 		return false
 	}
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes) {
-		if now.Time.After(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
-			return true
-		}
-		klog.Info(ctx, "Waiting cooltime")
+		return true
 	}
 	return false
 }
