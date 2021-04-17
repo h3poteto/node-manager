@@ -78,10 +78,13 @@ func (r *AWSNodeRefresherReconciler) refreshNextReplace(ctx context.Context, ref
 	return nil
 }
 
-func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, error) {
+func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, bool, error) {
 	now := metav1.Now()
+	if waitingReplace(refresher) {
+		return true, false, nil
+	}
 	if !r.shouldRetryReplace(ctx, refresher) {
-		return false, nil
+		return false, false, nil
 	}
 	target := refresher.Status.ReplaceTargetNode
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateReplacing
@@ -90,12 +93,12 @@ func (r *AWSNodeRefresherReconciler) retryReplace(ctx context.Context, refresher
 	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
-		return false, err
+		return false, false, err
 	}
 	r.Recorder.Event(refresher, corev1.EventTypeNormal, "Retry replace", "Retry to replace instance in ASG for refresh")
 
 	err := r.cloud.DeleteInstance(target)
-	return true, err
+	return false, true, err
 }
 
 func (r *AWSNodeRefresherReconciler) shouldRetryReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
@@ -118,7 +121,7 @@ func (r *AWSNodeRefresherReconciler) shouldRetryReplace(ctx context.Context, ref
 	return false
 }
 
-func (r *AWSNodeRefresherReconciler) replaceWait(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
+func waitingReplace(refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	now := metav1.Now()
 	if now.Time.Before(refresher.Status.LastASGModifiedTime.Add(1 * time.Minute)) {
 		return true
