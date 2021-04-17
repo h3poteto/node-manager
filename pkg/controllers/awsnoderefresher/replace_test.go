@@ -2,60 +2,17 @@ package awsnoderefresher
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 )
-
-type mockedEC2API struct {
-	ec2iface.EC2API
-	DescribeInstancesResp  *ec2.DescribeInstancesOutput
-	TerminateInstancesResp *ec2.TerminateInstancesOutput
-	terminateInstanceID    *string
-}
-
-func (m *mockedEC2API) DescribeInstances(in *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
-	return m.DescribeInstancesResp, nil
-}
-
-func (m *mockedEC2API) TerminateInstances(in *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
-	if m.terminateInstanceID != nil {
-		if *m.terminateInstanceID != *in.InstanceIds[0] {
-			return nil, fmt.Errorf("Terminate target instance id is not matched: %v", in.InstanceIds)
-		}
-	}
-	return m.TerminateInstancesResp, nil
-}
-
-type mockedClient struct {
-	client.Client
-}
-
-func (m *mockedClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-	return nil
-}
-
-type mockedRecorder struct {
-	record.EventRecorder
-}
-
-func (m *mockedRecorder) Event(object runtime.Object, eventtype, reason, messageFmt string) {
-}
-
-func (m *mockedRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
-}
 
 func TestRefreshReplace(t *testing.T) {
 	cases := []struct {
