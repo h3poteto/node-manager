@@ -36,16 +36,26 @@ func shouldAWSWait(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefre
 	return true
 }
 
-func (r *AWSNodeRefresherReconciler) stillWaiting(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
+func (r *AWSNodeRefresherReconciler) checkInstances(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, bool) {
 	now := metav1.Now()
+	if waiting(refresher, &now) {
+		return true, false
+	}
+
+	if enoughInstances(ctx, refresher) {
+		return false, true
+	}
+	return false, false
+}
+
+func waiting(refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
 	if now.Time.Before(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
-		klog.Info(ctx, "Waiting cooltime")
 		return true
 	}
 	return false
 }
 
-func (r *AWSNodeRefresherReconciler) enoughInstances(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
+func enoughInstances(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
 	if len(refresher.Status.AWSNodes) < int(refresher.Spec.Desired)+int(refresher.Spec.SurplusNodes) {
 		klog.Infof(ctx, "Instance is not enough, current: %d, expected: %d + %d", len(refresher.Status.AWSNodes), refresher.Spec.Desired, refresher.Spec.SurplusNodes)
 		return false

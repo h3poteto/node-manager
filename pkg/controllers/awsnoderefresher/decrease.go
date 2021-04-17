@@ -40,10 +40,13 @@ func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresh
 	return false
 }
 
-func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, error) {
+func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, bool, error) {
 	now := metav1.Now()
+	if waitingDecrease(ctx, refresher, &now) {
+		return true, false, nil
+	}
 	if !shouldRetryDecrease(ctx, refresher, &now) {
-		return false, nil
+		return false, false, nil
 	}
 
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateDecreasing
@@ -51,7 +54,7 @@ func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refreshe
 	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
-		return false, err
+		return false, false, err
 	}
 	r.Recorder.Eventf(refresher, corev1.EventTypeNormal, "Retry decrease", "Retry to decrease instances for AWSNodeRefresher %s/%s", refresher.Namespace, refresher.Name)
 
@@ -60,7 +63,7 @@ func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refreshe
 		int(refresher.Spec.Desired),
 		len(refresher.Status.AWSNodes),
 	)
-	return true, err
+	return false, true, err
 }
 
 func shouldRetryDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
@@ -75,5 +78,13 @@ func shouldRetryDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNod
 		return true
 	}
 	klog.Info(ctx, "Waiting cooltime")
+	return false
+}
+
+func waitingDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher, now *metav1.Time) bool {
+	if now.Time.Before(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
+		klog.Info(ctx, "Waiting cooltime")
+		return true
+	}
 	return false
 }

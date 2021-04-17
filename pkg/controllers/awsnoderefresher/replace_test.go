@@ -431,7 +431,8 @@ func TestRetryReplace(t *testing.T) {
 		refresher     *operatorv1alpha1.AWSNodeRefresher
 		describeResp  *ec2.DescribeInstancesOutput
 		terminateResp *ec2.TerminateInstancesOutput
-		expected      bool
+		waiting       bool
+		replace       bool
 	}{
 		{
 			title: "Status phase is not replacing",
@@ -470,7 +471,8 @@ func TestRetryReplace(t *testing.T) {
 					},
 				},
 			},
-			expected: false,
+			replace: false,
+			waiting: false,
 		},
 		{
 			title: "Instance is stopping",
@@ -553,7 +555,8 @@ func TestRetryReplace(t *testing.T) {
 					},
 				},
 			},
-			expected: true,
+			replace: true,
+			waiting: false,
 		},
 		{
 			title: "Instance is terminated",
@@ -621,7 +624,48 @@ func TestRetryReplace(t *testing.T) {
 					},
 				},
 			},
-			expected: false,
+			replace: false,
+			waiting: false,
+		},
+		{
+			title: "Before time wait",
+			refresher: &operatorv1alpha1.AWSNodeRefresher{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-refresher",
+				},
+				Spec: operatorv1alpha1.AWSNodeRefresherSpec{
+					Region:                   "us-east-1",
+					AutoScalingGroups:        nil,
+					Desired:                  3,
+					ASGModifyCoolTimeSeconds: 600,
+					Role:                     operatorv1alpha1.Worker,
+					Schedule:                 "* * * * *",
+					SurplusNodes:             1,
+				},
+				Status: operatorv1alpha1.AWSNodeRefresherStatus{
+					AWSNodes: nil,
+					LastASGModifiedTime: &metav1.Time{
+						Time: time.Now(),
+					},
+					Revision: 0,
+					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateReplacing,
+					NextUpdateTime: &metav1.Time{
+						Time: time.Now().Add(24 * time.Hour),
+					},
+					UpdateStartTime: &metav1.Time{
+						Time: time.Now().Add(-10 * time.Minute),
+					},
+					ReplaceTargetNode: &operatorv1alpha1.AWSNode{
+						Name:                 "",
+						InstanceID:           "",
+						AvailabilityZone:     "",
+						InstanceType:         "",
+						AutoScalingGroupName: "",
+					},
+				},
+			},
+			waiting: true,
+			replace: false,
 		},
 	}
 
@@ -642,13 +686,16 @@ func TestRetryReplace(t *testing.T) {
 			Recorder: &mockedRecorder{},
 		}
 
-		result, err := r.retryReplace(ctx, c.refresher)
+		waiting, replace, err := r.retryReplace(ctx, c.refresher)
 		if err != nil {
 			t.Errorf("CASES: %s : %v", c.title, err)
 			continue
 		}
-		if result != c.expected {
-			t.Errorf("CASE: %s : result is not matched, expected %t, but returned %t", c.title, c.expected, result)
+		if waiting != c.waiting {
+			t.Errorf("CASE: %s : waiting is not matched, expected %t, but returned %t", c.title, c.waiting, waiting)
+		}
+		if replace != c.replace {
+			t.Errorf("CASE: %s : replace is not matched, expected %t, but returned %t", c.title, c.replace, replace)
 		}
 	}
 }
@@ -816,141 +863,6 @@ func TestShouldRetryReplace(t *testing.T) {
 		}
 
 		result := r.shouldRetryReplace(ctx, c.refresher)
-		if result != c.expected {
-			t.Errorf("CASE: %s : result is not matched, expected %t, but returned %t", c.title, c.expected, result)
-		}
-	}
-}
-
-func TestReplaceWait(t *testing.T) {
-	cases := []struct {
-		title     string
-		refresher *operatorv1alpha1.AWSNodeRefresher
-		expected  bool
-	}{
-		{
-			title: "Before time wait",
-			refresher: &operatorv1alpha1.AWSNodeRefresher{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-refresher",
-				},
-				Spec: operatorv1alpha1.AWSNodeRefresherSpec{
-					Region:                   "us-east-1",
-					AutoScalingGroups:        nil,
-					Desired:                  3,
-					ASGModifyCoolTimeSeconds: 600,
-					Role:                     operatorv1alpha1.Worker,
-					Schedule:                 "* * * * *",
-					SurplusNodes:             1,
-				},
-				Status: operatorv1alpha1.AWSNodeRefresherStatus{
-					AWSNodes: nil,
-					LastASGModifiedTime: &metav1.Time{
-						Time: time.Now(),
-					},
-					Revision: 0,
-					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateReplacing,
-					NextUpdateTime: &metav1.Time{
-						Time: time.Now().Add(24 * time.Hour),
-					},
-					UpdateStartTime: &metav1.Time{
-						Time: time.Now().Add(-10 * time.Minute),
-					},
-					ReplaceTargetNode: &operatorv1alpha1.AWSNode{
-						Name:                 "",
-						InstanceID:           "",
-						AvailabilityZone:     "",
-						InstanceType:         "",
-						AutoScalingGroupName: "",
-					},
-				},
-			},
-			expected: true,
-		},
-		{
-			title: "After time wait",
-			refresher: &operatorv1alpha1.AWSNodeRefresher{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-refresher",
-				},
-				Spec: operatorv1alpha1.AWSNodeRefresherSpec{
-					Region:                   "us-east-1",
-					AutoScalingGroups:        nil,
-					Desired:                  3,
-					ASGModifyCoolTimeSeconds: 600,
-					Role:                     operatorv1alpha1.Worker,
-					Schedule:                 "* * * * *",
-					SurplusNodes:             1,
-				},
-				Status: operatorv1alpha1.AWSNodeRefresherStatus{
-					AWSNodes: nil,
-					LastASGModifiedTime: &metav1.Time{
-						Time: time.Now().Add(-2 * time.Minute),
-					},
-					Revision: 0,
-					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateReplacing,
-					NextUpdateTime: &metav1.Time{
-						Time: time.Now().Add(24 * time.Hour),
-					},
-					UpdateStartTime: &metav1.Time{
-						Time: time.Now().Add(-10 * time.Minute),
-					},
-					ReplaceTargetNode: &operatorv1alpha1.AWSNode{
-						Name:                 "",
-						InstanceID:           "",
-						AvailabilityZone:     "",
-						InstanceType:         "",
-						AutoScalingGroupName: "",
-					},
-				},
-			},
-			expected: false,
-		},
-	}
-
-	resp := &ec2.DescribeInstancesOutput{
-		NextToken: nil,
-		Reservations: []*ec2.Reservation{
-			&ec2.Reservation{
-				Groups: nil,
-				Instances: []*ec2.Instance{
-					&ec2.Instance{
-						InstanceId:   aws.String("instanceId-1"),
-						InstanceType: aws.String(ec2.InstanceTypeT3Small),
-						Placement: &ec2.Placement{
-							AvailabilityZone: aws.String("us-east-1"),
-						},
-						PrivateDnsName:   aws.String("ip-172-32-16-0"),
-						PrivateIpAddress: aws.String("172.32.16.0"),
-						Tags: []*ec2.Tag{
-							&ec2.Tag{
-								Key:   aws.String("Name"),
-								Value: aws.String("autoscaling-group-name"),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	mockedEC2 := &mockedEC2API{
-		DescribeInstancesResp: resp,
-	}
-
-	mockedAWS := &cloudaws.AWS{
-		EC2: mockedEC2,
-	}
-
-	r := &AWSNodeRefresherReconciler{
-		cloud:  mockedAWS,
-		Client: &mockedClient{},
-	}
-
-	for _, c := range cases {
-		log.Printf("Running CASE: %s", c.title)
-		ctx := context.Background()
-		result := r.replaceWait(ctx, c.refresher)
 		if result != c.expected {
 			t.Errorf("CASE: %s : result is not matched, expected %t, but returned %t", c.title, c.expected, result)
 		}
