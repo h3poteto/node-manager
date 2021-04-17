@@ -71,13 +71,9 @@ func shouldRetryDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNod
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not retry to decrease", refresher.Status.Phase)
 		return false
 	}
-	if len(refresher.Status.AWSNodes) == int(refresher.Spec.Desired) {
-		return false
-	}
-	if now.Time.After(refresher.Status.LastASGModifiedTime.Add(time.Duration(refresher.Spec.ASGModifyCoolTimeSeconds) * time.Second)) {
+	if len(refresher.Status.AWSNodes) > int(refresher.Spec.Desired) {
 		return true
 	}
-	klog.Info(ctx, "Waiting cooltime")
 	return false
 }
 
