@@ -34,7 +34,7 @@ func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresh
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not decrease", refresher.Status.Phase)
 		return false
 	}
-	if len(refresher.Status.AWSNodes) > int(refresher.Spec.Desired) {
+	if len(refresher.Status.AWSNodes) >= (int(refresher.Spec.Desired) + int(refresher.Spec.SurplusNodes)) {
 		return true
 	}
 	return false
