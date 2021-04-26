@@ -15,10 +15,11 @@ import (
 
 func TestRefreshDecrease(t *testing.T) {
 	cases := []struct {
-		title        string
-		refresher    *operatorv1alpha1.AWSNodeRefresher
-		describeResp *autoscaling.DescribeAutoScalingGroupsOutput
-		updateResp   *autoscaling.UpdateAutoScalingGroupOutput
+		title         string
+		refresher     *operatorv1alpha1.AWSNodeRefresher
+		describeResp  *autoscaling.DescribeAutoScalingGroupsOutput
+		updateResp    *autoscaling.UpdateAutoScalingGroupOutput
+		expectedPhase operatorv1alpha1.AWSNodeRefresherPhase
 	}{
 		{
 			title: "Phase is not matched",
@@ -85,6 +86,7 @@ func TestRefreshDecrease(t *testing.T) {
 					},
 				},
 			},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherUpdateReplacing,
 		},
 		{
 			title: "Instances are not enough",
@@ -151,6 +153,7 @@ func TestRefreshDecrease(t *testing.T) {
 					},
 				},
 			},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting,
 		},
 		{
 			title: "Instances are enough",
@@ -264,10 +267,11 @@ func TestRefreshDecrease(t *testing.T) {
 				},
 				NextToken: nil,
 			},
-			updateResp: &autoscaling.UpdateAutoScalingGroupOutput{},
+			updateResp:    &autoscaling.UpdateAutoScalingGroupOutput{},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherUpdateDecreasing,
 		},
 		{
-			title: "Instance is enough and no surplus",
+			title: "Instance is enough with surplus is 0",
 			refresher: &operatorv1alpha1.AWSNodeRefresher{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-refresher",
@@ -378,7 +382,8 @@ func TestRefreshDecrease(t *testing.T) {
 				},
 				NextToken: nil,
 			},
-			updateResp: &autoscaling.UpdateAutoScalingGroupOutput{},
+			updateResp:    &autoscaling.UpdateAutoScalingGroupOutput{},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherUpdateDecreasing,
 		},
 	}
 
@@ -400,6 +405,11 @@ func TestRefreshDecrease(t *testing.T) {
 		err := r.refreshDecrease(ctx, c.refresher)
 		if err != nil {
 			t.Errorf("CASE: %s : Failed to decrease: %v", c.title, err)
+			continue
+		}
+
+		if c.refresher.Status.Phase != c.expectedPhase {
+			t.Errorf("CASE : %s : Phase is not matched, expected: %s, returned: %s", c.title, c.expectedPhase, c.refresher.Status.Phase)
 		}
 	}
 }

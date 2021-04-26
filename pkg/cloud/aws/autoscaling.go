@@ -12,6 +12,9 @@ import (
 )
 
 func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, currentNodesCount int) error {
+	if totalDesired <= currentNodesCount {
+		return NewDesiredInvalidErrorf("desired does not exceed current, totalDesired: %d, currentNodesCount: %d", totalDesired, currentNodesCount)
+	}
 	var asgNameList []*string
 	for i := range groups {
 		asgNameList = append(asgNameList, aws.String(groups[i].Name))
@@ -81,6 +84,10 @@ func (a *AWS) AddInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScal
 }
 
 func (a *AWS) DeleteInstancesToAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup, totalDesired int, currentNodesCount int) error {
+	if totalDesired >= currentNodesCount {
+		return NewDesiredInvalidErrorf("desired exceeds current, totalDesired: %d, currentNodesCount: %d", totalDesired, currentNodesCount)
+	}
+
 	// Check desired capacity of each AutScalingGroups
 	var asgNameList []*string
 	for i := range groups {
