@@ -758,7 +758,7 @@ func TestDeleteInstancesToAutoScalingGroups(t *testing.T) {
 			},
 			specDesiredTotal: 5,
 			currentNodeCount: 2,
-			expectedError:    NewInstanceNotYetJoinErrorf("not all instances join the cluster as nodes, all instances: %d, current nodes: %d", 3, 2),
+			expectedError:    NewDesiredInvalidErrorf("desired exceeds current, totalDesired: %d, currentNodesCount: %d", 5, 2),
 		},
 		// Multiple ASGs which include invalid launch template ASGs, and decrease multiple nodes
 		{

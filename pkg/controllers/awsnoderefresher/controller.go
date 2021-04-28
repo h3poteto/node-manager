@@ -83,7 +83,7 @@ func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (r *AWSNodeRefresherReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	external := externalevent.NewExternalEventWatcher(5*time.Minute, func(ctx context.Context, c client.Client) ([]client.Object, error) {
+	external := externalevent.NewExternalEventWatcher(1*time.Minute, func(ctx context.Context, c client.Client) ([]client.Object, error) {
 		var refreshers operatorv1alpha1.AWSNodeRefresherList
 		err := c.List(ctx, &refreshers)
 		if err != nil {

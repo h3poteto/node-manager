@@ -13,7 +13,17 @@ import (
 
 func (r *AWSNodeRefresherReconciler) refreshDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) error {
 	now := metav1.Now()
-	if !r.shouldDecrease(ctx, refresher) {
+	should, skip := r.shouldDecrease(ctx, refresher)
+	if skip {
+		refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateDecreasing
+		refresher.Status.Revision += 1
+		if err := r.Client.Update(ctx, refresher); err != nil {
+			klog.Errorf(ctx, "failed to update refresher: %v", err)
+			return err
+		}
+		r.Recorder.Event(refresher, corev1.EventTypeNormal, "Skip decrease instance", "Skip decrease instance in ASG for refresh")
+	}
+	if !should {
 		return nil
 	}
 
@@ -29,15 +39,18 @@ func (r *AWSNodeRefresherReconciler) refreshDecrease(ctx context.Context, refres
 	return r.cloud.DeleteInstancesToAutoScalingGroups(refresher.Spec.AutoScalingGroups, int(refresher.Spec.Desired), len(refresher.Status.AWSNodes))
 }
 
-func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
+func (r *AWSNodeRefresherReconciler) shouldDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, bool) {
 	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting {
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not decrease", refresher.Status.Phase)
-		return false
+		return false, false
 	}
-	if len(refresher.Status.AWSNodes) > int(refresher.Spec.Desired) {
-		return true
+	if refresher.Spec.SurplusNodes == 0 {
+		return false, true
 	}
-	return false
+	if len(refresher.Status.AWSNodes) >= (int(refresher.Spec.Desired) + int(refresher.Spec.SurplusNodes)) {
+		return true, false
+	}
+	return false, false
 }
 
 func (r *AWSNodeRefresherReconciler) retryDecrease(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) (bool, bool, error) {

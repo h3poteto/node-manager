@@ -22,6 +22,7 @@ func TestRefreshIncrease(t *testing.T) {
 		awsNodeManager *operatorv1alpha1.AWSNodeManager
 		describeResp   *autoscaling.DescribeAutoScalingGroupsOutput
 		updateResp     *autoscaling.UpdateAutoScalingGroupOutput
+		expectedPhase  operatorv1alpha1.AWSNodeRefresherPhase
 	}{
 		{
 			title: "Cluster is replenishing",
@@ -108,6 +109,7 @@ func TestRefreshIncrease(t *testing.T) {
 					Phase:    operatorv1alpha1.AWSNodeManagerReplenishing,
 				},
 			},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherScheduled,
 		},
 		{
 			title: "Before next update time",
@@ -215,6 +217,115 @@ func TestRefreshIncrease(t *testing.T) {
 					Phase:    operatorv1alpha1.AWSNodeManagerSynced,
 				},
 			},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherScheduled,
+		},
+		{
+			title: "Before next update time with surplus is 0",
+			refresher: &operatorv1alpha1.AWSNodeRefresher{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-refresher",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         operatorv1alpha1.SchemeBuilder.GroupVersion.String(),
+							Kind:               "AWSNodeManager",
+							Name:               "test-awsnodemanager",
+							UID:                "",
+							Controller:         aws.Bool(true),
+							BlockOwnerDeletion: aws.Bool(true),
+						},
+					},
+				},
+				Spec: operatorv1alpha1.AWSNodeRefresherSpec{
+					Region: "us-east-1",
+					AutoScalingGroups: []operatorv1alpha1.AutoScalingGroup{
+						{
+							Name: "asg-1",
+						},
+					},
+					Desired:                  2,
+					ASGModifyCoolTimeSeconds: 600,
+					Role:                     operatorv1alpha1.Worker,
+					Schedule:                 "* * * * *",
+					SurplusNodes:             0,
+				},
+				Status: operatorv1alpha1.AWSNodeRefresherStatus{
+					AWSNodes: []operatorv1alpha1.AWSNode{
+						{
+							Name:                 "worker-1",
+							InstanceID:           "instanceId-1",
+							AvailabilityZone:     "us-east-1a",
+							InstanceType:         "t3.small",
+							AutoScalingGroupName: "asg-1",
+							CreationTimestamp: metav1.Time{
+								Time: time.Now().Add(-10 * time.Hour),
+							},
+						},
+						{
+							Name:                 "worker-2",
+							InstanceID:           "instanceId-2",
+							AvailabilityZone:     "us-east-1c",
+							InstanceType:         "t3.small",
+							AutoScalingGroupName: "asg-1",
+							CreationTimestamp: metav1.Time{
+								Time: time.Now().Add(-10 * time.Hour),
+							},
+						},
+					},
+					LastASGModifiedTime: &metav1.Time{
+						Time: time.Now().Add(-1 * time.Hour),
+					},
+					Revision: 0,
+					Phase:    operatorv1alpha1.AWSNodeRefresherScheduled,
+					NextUpdateTime: &metav1.Time{
+						Time: time.Now().Add(10 * time.Minute),
+					},
+					UpdateStartTime: &metav1.Time{
+						Time: time.Now().Add(-1 * time.Hour),
+					},
+					ReplaceTargetNode: &operatorv1alpha1.AWSNode{
+						Name:                 "",
+						InstanceID:           "",
+						AvailabilityZone:     "",
+						InstanceType:         "",
+						AutoScalingGroupName: "",
+						CreationTimestamp: metav1.Time{
+							Time: time.Time{},
+						},
+					},
+				},
+			},
+			awsNodeManager: &operatorv1alpha1.AWSNodeManager{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-awsnodemanager",
+				},
+				Spec: operatorv1alpha1.AWSNodeManagerSpec{
+					Region:                   "",
+					AutoScalingGroups:        nil,
+					Desired:                  0,
+					ASGModifyCoolTimeSeconds: 0,
+					Role:                     "",
+					EnableReplenish:          false,
+					RefreshSchedule:          "",
+					SurplusNodes:             0,
+				},
+				Status: operatorv1alpha1.AWSNodeManagerStatus{
+					NodeReplenisher: &operatorv1alpha1.AWSNodeReplenisherRef{
+						Namespace: "",
+						Name:      "",
+					},
+					NodeRefresher: &operatorv1alpha1.AWSNodeRefresherRef{
+						Namespace: "",
+						Name:      "",
+					},
+					AWSNodes: nil,
+					LastASGModifiedTime: &metav1.Time{
+						Time: time.Time{},
+					},
+					Revision: 0,
+					Phase:    operatorv1alpha1.AWSNodeManagerSynced,
+				},
+			},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherScheduled,
 		},
 		{
 			title: "After next update time",
@@ -352,7 +463,116 @@ func TestRefreshIncrease(t *testing.T) {
 				},
 				NextToken: nil,
 			},
-			updateResp: &autoscaling.UpdateAutoScalingGroupOutput{},
+			updateResp:    &autoscaling.UpdateAutoScalingGroupOutput{},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+		},
+		{
+			title: "After next update time and surplus is 0",
+			refresher: &operatorv1alpha1.AWSNodeRefresher{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-refresher",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         operatorv1alpha1.SchemeBuilder.GroupVersion.String(),
+							Kind:               "AWSNodeManager",
+							Name:               "test-awsnodemanager",
+							UID:                "",
+							Controller:         aws.Bool(true),
+							BlockOwnerDeletion: aws.Bool(true),
+						},
+					},
+				},
+				Spec: operatorv1alpha1.AWSNodeRefresherSpec{
+					Region: "us-east-1",
+					AutoScalingGroups: []operatorv1alpha1.AutoScalingGroup{
+						{
+							Name: "asg-1",
+						},
+					},
+					Desired:                  2,
+					ASGModifyCoolTimeSeconds: 600,
+					Role:                     operatorv1alpha1.Worker,
+					Schedule:                 "* * * * *",
+					SurplusNodes:             0,
+				},
+				Status: operatorv1alpha1.AWSNodeRefresherStatus{
+					AWSNodes: []operatorv1alpha1.AWSNode{
+						{
+							Name:                 "worker-1",
+							InstanceID:           "instanceId-1",
+							AvailabilityZone:     "us-east-1a",
+							InstanceType:         "t3.small",
+							AutoScalingGroupName: "asg-1",
+							CreationTimestamp: metav1.Time{
+								Time: time.Now().Add(-10 * time.Hour),
+							},
+						},
+						{
+							Name:                 "worker-2",
+							InstanceID:           "instanceId-2",
+							AvailabilityZone:     "us-east-1c",
+							InstanceType:         "t3.small",
+							AutoScalingGroupName: "asg-1",
+							CreationTimestamp: metav1.Time{
+								Time: time.Now().Add(-10 * time.Hour),
+							},
+						},
+					},
+					LastASGModifiedTime: &metav1.Time{
+						Time: time.Now().Add(-1 * time.Hour),
+					},
+					Revision: 0,
+					Phase:    operatorv1alpha1.AWSNodeRefresherScheduled,
+					NextUpdateTime: &metav1.Time{
+						Time: time.Now().Add(-10 * time.Minute),
+					},
+					UpdateStartTime: &metav1.Time{
+						Time: time.Now().Add(-1 * time.Hour),
+					},
+					ReplaceTargetNode: &operatorv1alpha1.AWSNode{
+						Name:                 "",
+						InstanceID:           "",
+						AvailabilityZone:     "",
+						InstanceType:         "",
+						AutoScalingGroupName: "",
+						CreationTimestamp: metav1.Time{
+							Time: time.Time{},
+						},
+					},
+				},
+			},
+			awsNodeManager: &operatorv1alpha1.AWSNodeManager{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-awsnodemanager",
+				},
+				Spec: operatorv1alpha1.AWSNodeManagerSpec{
+					Region:                   "",
+					AutoScalingGroups:        nil,
+					Desired:                  0,
+					ASGModifyCoolTimeSeconds: 0,
+					Role:                     "",
+					EnableReplenish:          false,
+					RefreshSchedule:          "",
+					SurplusNodes:             0,
+				},
+				Status: operatorv1alpha1.AWSNodeManagerStatus{
+					NodeReplenisher: &operatorv1alpha1.AWSNodeReplenisherRef{
+						Namespace: "",
+						Name:      "",
+					},
+					NodeRefresher: &operatorv1alpha1.AWSNodeRefresherRef{
+						Namespace: "",
+						Name:      "",
+					},
+					AWSNodes: nil,
+					LastASGModifiedTime: &metav1.Time{
+						Time: time.Time{},
+					},
+					Revision: 0,
+					Phase:    operatorv1alpha1.AWSNodeManagerSynced,
+				},
+			},
+			expectedPhase: operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
 		},
 	}
 
@@ -384,6 +604,11 @@ func TestRefreshIncrease(t *testing.T) {
 		err := r.refreshIncrease(ctx, c.refresher)
 		if err != nil {
 			t.Errorf("CASE : %s : Failed to increase: %v", c.title, err)
+			continue
+		}
+
+		if c.refresher.Status.Phase != c.expectedPhase {
+			t.Errorf("CASE : %s : Phase is not matched, expected: %s, returned: %s", c.title, c.expectedPhase, c.refresher.Status.Phase)
 		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/h3poteto/node-manager/pkg/util/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
@@ -41,6 +42,7 @@ func (e *externalEventWatcher) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			klog.Info(ctx, "Force syncing")
 			list, err := e.fn(ctx, e.client)
 			if err != nil {
 				break
