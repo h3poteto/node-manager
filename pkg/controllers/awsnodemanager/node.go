@@ -15,7 +15,7 @@ import (
 
 func (r *AWSNodeManagerReconciler) syncAWSNodes(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (bool, error) {
 	cloud := cloudaws.New(r.Session, awsNodeManager.Spec.Region)
-	if err := cloud.ReflectInstancesInformation(awsNodeManager); err != nil {
+	if err := reflectInstances(ctx, cloud, awsNodeManager); err != nil {
 		return false, err
 	}
 	klog.Info(ctx, "Checking not joined instances")
@@ -46,6 +46,29 @@ func (r *AWSNodeManagerReconciler) syncAWSNodes(ctx context.Context, awsNodeMana
 	klog.Infof(ctx, "success to update AWSNodeManager %s/%s", currentManager.Namespace, currentManager.Name)
 	r.Recorder.Eventf(&currentManager, corev1.EventTypeNormal, "Updated", "Updated AWSNodeManager %s/%s", currentManager.Namespace, currentManager.Name)
 	return true, nil
+}
+
+func reflectInstances(ctx context.Context, cloud *cloudaws.AWS, awsNodeManager *operatorv1alpha1.AWSNodeManager) error {
+	for i := range awsNodeManager.Status.AWSNodes {
+		node := &awsNodeManager.Status.AWSNodes[i]
+		if node.InstanceID != "" {
+			continue
+		}
+		instance, err := cloud.DescribeInstance(node)
+		if err != nil {
+			return err
+		}
+		n, err := cloudaws.ConvertInstanceToAWSNode(instance)
+		if err != nil {
+			klog.Warning(ctx, err)
+			continue
+		}
+		awsNodeManager.Status.AWSNodes[i].InstanceID = n.InstanceID
+		awsNodeManager.Status.AWSNodes[i].InstanceType = n.InstanceType
+		awsNodeManager.Status.AWSNodes[i].AvailabilityZone = n.AvailabilityZone
+		awsNodeManager.Status.AWSNodes[i].AutoScalingGroupName = n.AutoScalingGroupName
+	}
+	return nil
 }
 
 func reflectNotJoinedInstances(cloud *cloudaws.AWS, awsNodeManager *operatorv1alpha1.AWSNodeManager) error {
