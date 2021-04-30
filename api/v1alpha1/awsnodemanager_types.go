@@ -57,8 +57,9 @@ type AWSNodeManagerStatus struct {
 	// +nullable
 	NodeReplenisher *AWSNodeReplenisherRef `json:"nodeReplenisher"`
 	// +nullable
-	NodeRefresher *AWSNodeRefresherRef `json:"nodeRefresher"`
-	AWSNodes      []AWSNode            `json:"awsNodes,omitempty"`
+	NodeRefresher     *AWSNodeRefresherRef `json:"nodeRefresher"`
+	AWSNodes          []AWSNode            `json:"awsNodes,omitempty"`
+	NotJoinedAWSNodes []AWSNode            `json:"notJoinedAwsNodes,omitempty"`
 	// +optinal
 	// +nullable
 	LastASGModifiedTime *metav1.Time `json:"lastASGModifiedTime,omitempty"`

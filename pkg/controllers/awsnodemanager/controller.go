@@ -64,7 +64,7 @@ func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	ctx = pkgctx.SetRequestID(ctx, id)
 
-	klog.Info(ctx, "fetching AWSNodeManager resources")
+	klog.Infof(ctx, "fetching AWSNodeManager resources: %s/%s", req.Namespace, req.Name)
 	awsNodeManager := operatorv1alpha1.AWSNodeManager{}
 	if err := r.Client.Get(ctx, req.NamespacedName, &awsNodeManager); err != nil {
 		klog.Infof(ctx, "failed to get AWSNodeManager resources: %v", err)

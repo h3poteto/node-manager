@@ -2,9 +2,11 @@ package aws
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
@@ -98,4 +100,32 @@ func (a *AWS) DescribeInstance(node *operatorv1alpha1.AWSNode) (*ec2.Instance, e
 	}
 	instance := output.Reservations[0].Instances[0]
 	return instance, nil
+}
+
+func (a *AWS) GetAWSNodes(instanceIDs []*string) ([]operatorv1alpha1.AWSNode, error) {
+	input := &ec2.DescribeInstancesInput{
+		DryRun:      nil,
+		InstanceIds: instanceIDs,
+	}
+	output, err := a.EC2.DescribeInstances(input)
+	if err != nil {
+		klog.Errorf("failed to describe ec2 instances: %v", err)
+		return nil, err
+	}
+	var nodes []operatorv1alpha1.AWSNode
+	for _, r := range output.Reservations {
+		for _, instance := range r.Instances {
+			tag := findTag(instance.Tags, "Name")
+			n := operatorv1alpha1.AWSNode{
+				Name:                 *instance.PrivateDnsName,
+				InstanceID:           *instance.InstanceId,
+				AvailabilityZone:     *instance.Placement.AvailabilityZone,
+				InstanceType:         *instance.InstanceType,
+				AutoScalingGroupName: *tag.Value,
+				CreationTimestamp:    metav1.NewTime(instance.LaunchTime.In(time.Local)),
+			}
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes, nil
 }

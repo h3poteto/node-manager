@@ -42,12 +42,12 @@ func (e *externalEventWatcher) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			klog.Info(ctx, "Force syncing")
 			list, err := e.fn(ctx, e.client)
 			if err != nil {
 				break
 			}
 			for _, ref := range list {
+				klog.Infof(ctx, "Force syncing %s/%s", ref.GetNamespace(), ref.GetName())
 				e.Channel <- event.GenericEvent{
 					Object: ref,
 				}
