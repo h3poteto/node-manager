@@ -37,3 +37,21 @@ func (err *DesiredInvalidError) Error() string {
 func (err *DesiredInvalidError) Is(target error) bool {
 	return err.Error() == target.Error()
 }
+
+type CouldNotFoundNameTagError struct {
+	Msg string
+}
+
+func NewCouldNotFoundNameTagError(format string, a ...interface{}) *CouldNotFoundNameTagError {
+	return &CouldNotFoundNameTagError{
+		Msg: fmt.Sprintf(format, a...),
+	}
+}
+
+func (err *CouldNotFoundNameTagError) Error() string {
+	return fmt.Sprintf(err.Msg)
+}
+
+func (err *CouldNotFoundNameTagError) Is(target error) bool {
+	return err.Error() == target.Error()
+}

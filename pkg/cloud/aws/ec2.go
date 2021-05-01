@@ -80,7 +80,7 @@ func ConvertInstanceToAWSNode(instance *ec2.Instance) (*operatorv1alpha1.AWSNode
 	tag := findTag(instance.Tags, "Name")
 	// Normally auto scaling group name is filled in name tag of instances.
 	if tag == nil {
-		return nil, fmt.Errorf("could not find Name tag in aws instances %s", *instance.InstanceId)
+		return nil, NewCouldNotFoundNameTagError("could not find Name tag in aws instances %s", *instance.InstanceId)
 	}
 	return &operatorv1alpha1.AWSNode{
 		Name:                 *instance.PrivateDnsName,
