@@ -218,3 +218,22 @@ func allASGIsMinimized(asgs []*autoscaling.Group) bool {
 	}
 	return true
 }
+
+func (a *AWS) DescribeAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGroup) ([]*autoscaling.Group, error) {
+	var asgNames []*string
+	for _, asg := range groups {
+		asgNames = append(asgNames, aws.String(asg.Name))
+	}
+
+	input := &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: asgNames,
+		MaxRecords:            nil,
+		NextToken:             nil,
+	}
+	output, err := a.Autoscaling.DescribeAutoScalingGroups(input)
+	if err != nil {
+		klog.Errorf("failed to describe autoscaling group: %v", err)
+		return nil, err
+	}
+	return output.AutoScalingGroups, nil
+}

@@ -14,14 +14,14 @@ spec:
       enableReplenish: true
       surplusNodes: 0
       autoScalingGroups:
-        - name: masters-ap-northeast-1a.masters.playground.k8s.h3poteto.dev
-        - name: masters-ap-northeast-1d.masters.playground.k8s.h3poteto.dev
-        - name: masters-ap-northeast-1c.masters.playground.k8s.h3poteto.dev
+        - name: master-ap-northeast-1a.masters.playground.k8s.h3poteto.dev
+        - name: master-ap-northeast-1d.masters.playground.k8s.h3poteto.dev
+        - name: master-ap-northeast-1c.masters.playground.k8s.h3poteto.dev
     workers:
       desired: 1
       asgModifyCoolTimeSeconds: 600
       refreshSchedule: "10 23 * * *"
-      enableReplenish: true
+      enableReplenish: false
       surplusNodes: 1
       autoScalingGroups:
         - name: nodes-ap-northeast-1a.playground.k8s.h3poteto.dev

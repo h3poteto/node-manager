@@ -133,6 +133,31 @@ spec:
                 - name
                 - namespace
                 type: object
+              notJoinedAwsNodes:
+                items:
+                  properties:
+                    autoScalingGroupName:
+                      type: string
+                    availabilityZone:
+                      type: string
+                    creationTimestamp:
+                      format: date-time
+                      type: string
+                    instanceID:
+                      type: string
+                    instanceType:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - autoScalingGroupName
+                  - availabilityZone
+                  - creationTimestamp
+                  - instanceID
+                  - instanceType
+                  - name
+                  type: object
+                type: array
               phase:
                 default: init
                 type: string
