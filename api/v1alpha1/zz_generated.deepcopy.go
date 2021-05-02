@@ -414,6 +414,13 @@ func (in *AWSNodeReplenisherStatus) DeepCopyInto(out *AWSNodeReplenisherStatus) 
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.NotJoinedAWSNodes != nil {
+		in, out := &in.NotJoinedAWSNodes, &out.NotJoinedAWSNodes
+		*out = make([]AWSNode, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.LastASGModifiedTime != nil {
 		in, out := &in.LastASGModifiedTime, &out.LastASGModifiedTime
 		*out = (*in).DeepCopy()

@@ -74,12 +74,15 @@ func (r *AWSNodeManagerReconciler) createAWSNodeReplenisher(ctx context.Context,
 
 func (r *AWSNodeManagerReconciler) updateAWSNodeReplenisher(ctx context.Context, existingReplenisher *operatorv1alpha1.AWSNodeReplenisher, awsNodeManager *operatorv1alpha1.AWSNodeManager) (*operatorv1alpha1.AWSNodeReplenisher, error) {
 	newReplenisher := generateAWSNodeReplenisher(awsNodeManager)
-	if reflect.DeepEqual(existingReplenisher.Spec, newReplenisher.Spec) && reflect.DeepEqual(existingReplenisher.Status.AWSNodes, newReplenisher.Status.AWSNodes) {
+	if reflect.DeepEqual(existingReplenisher.Spec, newReplenisher.Spec) &&
+		reflect.DeepEqual(existingReplenisher.Status.AWSNodes, newReplenisher.Status.AWSNodes) &&
+		reflect.DeepEqual(existingReplenisher.Status.NotJoinedAWSNodes, newReplenisher.Status.NotJoinedAWSNodes) {
 		klog.Infof(ctx, "AWSNodeReplenisher %s/%s is already synced", existingReplenisher.Namespace, existingReplenisher.Name)
 		return existingReplenisher, nil
 	}
 	existingReplenisher.Spec = newReplenisher.Spec
 	existingReplenisher.Status.AWSNodes = newReplenisher.Status.AWSNodes
+	existingReplenisher.Status.NotJoinedAWSNodes = newReplenisher.Status.NotJoinedAWSNodes
 	existingReplenisher.Status.Revision += 1
 	if err := r.Client.Update(ctx, existingReplenisher); err != nil {
 		klog.Errorf(ctx, "failed to update existing AWSNodeReplenisher %s/%s: %v", existingReplenisher.Namespace, existingReplenisher.Name, err)
@@ -109,9 +112,10 @@ func generateAWSNodeReplenisher(awsNodeManager *operatorv1alpha1.AWSNodeManager)
 			Role:                     awsNodeManager.Spec.Role,
 		},
 		Status: operatorv1alpha1.AWSNodeReplenisherStatus{
-			AWSNodes: awsNodeManager.Status.AWSNodes,
-			Revision: 0,
-			Phase:    operatorv1alpha1.AWSNodeReplenisherInit,
+			AWSNodes:          awsNodeManager.Status.AWSNodes,
+			NotJoinedAWSNodes: awsNodeManager.Status.NotJoinedAWSNodes,
+			Revision:          0,
+			Phase:             operatorv1alpha1.AWSNodeReplenisherInit,
 		},
 	}
 }

@@ -40,7 +40,8 @@ type AWSNodeReplenisherSpec struct {
 
 // AWSNodeReplenisherStatus defines the observed state of AWSNodeReplenisher
 type AWSNodeReplenisherStatus struct {
-	AWSNodes []AWSNode `json:"awsNodes,omitempty"`
+	AWSNodes          []AWSNode `json:"awsNodes,omitempty"`
+	NotJoinedAWSNodes []AWSNode `json:"notJoinedAWSNodes,omitempty"`
 	// +optinal
 	// +nullable
 	LastASGModifiedTime *metav1.Time `json:"lastASGModifiedTime,omitempty"`
