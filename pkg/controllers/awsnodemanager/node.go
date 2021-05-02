@@ -14,12 +14,11 @@ import (
 )
 
 func (r *AWSNodeManagerReconciler) syncAWSNodes(ctx context.Context, awsNodeManager *operatorv1alpha1.AWSNodeManager) (bool, error) {
-	cloud := cloudaws.New(r.Session, awsNodeManager.Spec.Region)
-	if err := reflectInstances(ctx, cloud, awsNodeManager); err != nil {
+	if err := reflectInstances(ctx, r.cloud, awsNodeManager); err != nil {
 		return false, err
 	}
 	klog.Info(ctx, "Checking not joined instances")
-	if err := reflectNotJoinedInstances(cloud, awsNodeManager); err != nil {
+	if err := reflectNotJoinedInstances(r.cloud, awsNodeManager); err != nil {
 		return false, err
 	}
 

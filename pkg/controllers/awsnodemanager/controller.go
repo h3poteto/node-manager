@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
+	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
 	"github.com/h3poteto/node-manager/pkg/util/externalevent"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
@@ -44,7 +45,7 @@ type AWSNodeManagerReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
-	Session  *session.Session
+	cloud    *cloudaws.AWS
 }
 
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnodemanagers,verbs=get;list;watch;create;update;patch;delete
@@ -72,9 +73,10 @@ func (r *AWSNodeManagerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Generate aws client
-	r.Session = session.Must(session.NewSessionWithOptions(session.Options{
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
+	r.cloud = cloudaws.New(sess, awsNodeManager.Spec.Region)
 
 	if err := r.syncAWSNodeManager(ctx, &awsNodeManager); err != nil {
 		klog.Errorf(ctx, "failed to sync AWSNodeManager: %v", err)
