@@ -47,7 +47,7 @@ type AWSNodeReplenisherReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
-	Session  *session.Session
+	cloud    *cloudaws.AWS
 }
 
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnodereplenishers,verbs=get;list;watch;create;update;patch;delete
@@ -71,9 +71,10 @@ func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Generate aws client
-	r.Session = session.Must(session.NewSessionWithOptions(session.Options{
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
+	r.cloud = cloudaws.New(sess, replenisher.Spec.Region)
 
 	if err := r.syncReplenisher(ctx, &replenisher); err != nil {
 		klog.Errorf(ctx, "failed to sync AWSNodeReplenisher: %v", err)
@@ -92,9 +93,8 @@ func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error 
 
 // syncReplenisher checks nodes and replenish AWS instances when node resources are not enough.
 func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	klog.Info(ctx, "reading node info from status")
 
-	if len(replenisher.Status.AWSNodes) == int(replenisher.Spec.Desired) {
+	if !shouldSync(replenisher) {
 		klog.Info(ctx, "nodes count is same as desired count")
 		return r.updateStatusSynced(ctx, replenisher)
 	}
@@ -116,35 +116,15 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 		return nil
 	}
 
-	if len(replenisher.Status.AWSNodes) > int(replenisher.Spec.Desired) {
-		klog.Infof(ctx, "nodes count is %d, but desired count is %d, so deleting nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
-		if err := r.deleteNode(ctx, replenisher, len(replenisher.Status.AWSNodes)); err != nil {
-			return err
-		}
-	} else {
-		klog.Infof(ctx, "nodes count is %d, but desired count is %d, so adding nodes", len(replenisher.Status.AWSNodes), replenisher.Spec.Desired)
-		if err := r.addNode(ctx, replenisher, len(replenisher.Status.AWSNodes)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *AWSNodeReplenisherReconciler) addNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, currentNodesCount int) error {
-	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
+	updated, err := r.syncAWSNodes(ctx, replenisher)
+	if err != nil {
 		return err
 	}
-	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
-	return cloud.AddInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), currentNodesCount)
-}
-
-func (r *AWSNodeReplenisherReconciler) deleteNode(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, currentNodesCount int) error {
-	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
-		return err
+	if updated {
+		return nil
 	}
 
-	cloud := cloudaws.New(r.Session, replenisher.Spec.Region)
-	return cloud.DeleteInstancesToAutoScalingGroups(replenisher.Spec.AutoScalingGroups, int(replenisher.Spec.Desired), currentNodesCount)
+	return r.syncNotJoinedAWSNodes(ctx, replenisher)
 }
 
 func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
@@ -168,44 +148,6 @@ func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context
 	})
 }
 
-func (r *AWSNodeReplenisherReconciler) updateStatusSynced(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
-		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
-			klog.Errorf(ctx, "failed to get AWSNodeReplenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-			return err
-		}
-		if currentReplenisher.Status.Phase == operatorv1alpha1.AWSNodeReplenisherSynced {
-			klog.Infof(ctx, "AWSNodeReplenisher %s/%s is already synced", currentReplenisher.Namespace, currentReplenisher.Name)
-			return nil
-		}
-		currentReplenisher.Status.Phase = operatorv1alpha1.AWSNodeReplenisherSynced
-		currentReplenisher.Status.Revision += 1
-		if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
-			klog.Errorf(ctx, "failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-			return err
-		}
-		r.Recorder.Eventf(&currentReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher status %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
-		return nil
-	})
-}
-
-func (r *AWSNodeReplenisherReconciler) updateStatusAWSUpdating(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
-	now := metav1.Now()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
-		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
-			klog.Errorf(ctx, "failed to get AWSNodeReplenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-			return err
-		}
-		currentReplenisher.Status.Phase = operatorv1alpha1.AWSNodeReplenisherAWSUpdating
-		currentReplenisher.Status.LastASGModifiedTime = &now
-		currentReplenisher.Status.Revision += 1
-		if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
-			klog.Errorf(ctx, "failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-			return err
-		}
-		r.Recorder.Eventf(&currentReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher status %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
-		return nil
-	})
+func shouldSync(replenisher *operatorv1alpha1.AWSNodeReplenisher) bool {
+	return len(replenisher.Status.AWSNodes) != int(replenisher.Spec.Desired) || len(replenisher.Status.NotJoinedAWSNodes) > 0
 }

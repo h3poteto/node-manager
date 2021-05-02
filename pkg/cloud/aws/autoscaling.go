@@ -237,3 +237,19 @@ func (a *AWS) DescribeAutoScalingGroups(groups []operatorv1alpha1.AutoScalingGro
 	}
 	return output.AutoScalingGroups, nil
 }
+
+func (a *AWS) DetachInstanceFromASG(instanceID string, asgName string) error {
+	input := &autoscaling.DetachInstancesInput{
+		AutoScalingGroupName: aws.String(asgName),
+		InstanceIds: []*string{
+			aws.String(instanceID),
+		},
+		ShouldDecrementDesiredCapacity: aws.Bool(true),
+	}
+	_, err := a.Autoscaling.DetachInstances(input)
+	if err != nil {
+		klog.Errorf("failed to detach instances: %v", err)
+		return err
+	}
+	return nil
+}
