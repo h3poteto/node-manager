@@ -23,10 +23,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -125,27 +123,6 @@ func (r *AWSNodeReplenisherReconciler) syncReplenisher(ctx context.Context, repl
 	}
 
 	return r.syncNotJoinedAWSNodes(ctx, replenisher)
-}
-
-func (r *AWSNodeReplenisherReconciler) updateLatestTimestamp(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher, now metav1.Time) error {
-	// We have to retry when this update function is failed.
-	// If we don't update LastASGModifiedTime after modify some ASGs,
-	// the next process in reconcile will add/delete instances without wait.
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentReplenisher := operatorv1alpha1.AWSNodeReplenisher{}
-		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: replenisher.Namespace, Name: replenisher.Name}, &currentReplenisher); err != nil {
-			klog.Errorf(ctx, "failed to get AWSNodeReplenisher %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-			return err
-		}
-		currentReplenisher.Status.LastASGModifiedTime = &now
-		currentReplenisher.Status.Revision += 1
-		if err := r.Client.Update(ctx, &currentReplenisher); err != nil {
-			klog.Errorf(ctx, "failed to update AWSNodeReplenisher status %s/%s: %v", replenisher.Namespace, replenisher.Name, err)
-			return err
-		}
-		r.Recorder.Eventf(&currentReplenisher, corev1.EventTypeNormal, "Updated", "Updated AWSNodeReplenisher status %s/%s", currentReplenisher.Namespace, currentReplenisher.Name)
-		return nil
-	})
 }
 
 func shouldSync(replenisher *operatorv1alpha1.AWSNodeReplenisher) bool {
