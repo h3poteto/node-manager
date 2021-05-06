@@ -90,8 +90,9 @@ func (r *AWSNodeRefresherReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil, err
 		}
 		var list []client.Object
-		for _, o := range refreshers.Items {
-			list = append(list, &o)
+		for i := range refreshers.Items {
+			item := &refreshers.Items[i]
+			list = append(list, item)
 		}
 		return list, nil
 	})

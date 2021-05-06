@@ -95,8 +95,9 @@ func (r *AWSNodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil, err
 		}
 		var list []client.Object
-		for _, o := range managers.Items {
-			list = append(list, &o)
+		for i := range managers.Items {
+			item := &managers.Items[i]
+			list = append(list, item)
 		}
 		return list, nil
 	})
