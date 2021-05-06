@@ -27,10 +27,13 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	cloudaws "github.com/h3poteto/node-manager/pkg/cloud/aws"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
+	"github.com/h3poteto/node-manager/pkg/util/externalevent"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
 	"github.com/h3poteto/node-manager/pkg/util/requestid"
 )
@@ -84,8 +87,29 @@ func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	external := externalevent.NewExternalEventWatcher(5*time.Minute, func(ctx context.Context, c client.Client) ([]client.Object, error) {
+		var replenishers operatorv1alpha1.AWSNodeReplenisherList
+		err := c.List(ctx, &replenishers)
+		if err != nil {
+			return nil, err
+		}
+		var list []client.Object
+		for i := range replenishers.Items {
+			item := &replenishers.Items[i]
+			list = append(list, item)
+		}
+		return list, nil
+	})
+	err := mgr.Add(external)
+	if err != nil {
+		return err
+	}
+	src := source.Channel{
+		Source: external.Channel,
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeReplenisher{}).
+		Watches(&src, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 

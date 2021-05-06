@@ -6,6 +6,7 @@ import (
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	"github.com/h3poteto/node-manager/pkg/util/klog"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func (r *AWSNodeReplenisherReconciler) syncNotJoinedAWSNodes(ctx context.Context, replenisher *operatorv1alpha1.AWSNodeReplenisher) error {
@@ -14,12 +15,12 @@ func (r *AWSNodeReplenisherReconciler) syncNotJoinedAWSNodes(ctx context.Context
 	}
 	now := time.Now()
 
-	if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
-		return err
-	}
 	for _, node := range replenisher.Status.NotJoinedAWSNodes {
 		if shouldWait(&node, now) {
 			continue
+		}
+		if err := r.updateStatusAWSUpdating(ctx, replenisher); err != nil {
+			return err
 		}
 		err := r.cloud.DetachInstanceFromASG(node.InstanceID, node.AutoScalingGroupName)
 		if err != nil {
@@ -32,6 +33,8 @@ func (r *AWSNodeReplenisherReconciler) syncNotJoinedAWSNodes(ctx context.Context
 			klog.Errorf(ctx, "failed to delete instance %s: %v", node.InstanceID, err)
 			return err
 		}
+		klog.Infof(ctx, "detach and terminate instance %s from %s", node.InstanceID, node.AutoScalingGroupName)
+		r.Recorder.Eventf(replenisher, corev1.EventTypeNormal, "Delete instance", "Detach and terminate instance %s from %s", node.InstanceID, node.AutoScalingGroupName)
 	}
 
 	return nil

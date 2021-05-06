@@ -17,7 +17,7 @@ func (r *AWSNodeManagerReconciler) syncAWSNodes(ctx context.Context, awsNodeMana
 	if err := reflectInstances(ctx, r.cloud, awsNodeManager); err != nil {
 		return false, err
 	}
-	klog.Info(ctx, "Checking not joined instances")
+	klog.Infof(ctx, "Checking not joined instances for %s/%s", awsNodeManager.Namespace, awsNodeManager.Name)
 	if err := reflectNotJoinedInstances(r.cloud, awsNodeManager); err != nil {
 		return false, err
 	}
@@ -85,6 +85,7 @@ func reflectNotJoinedInstances(cloud *cloudaws.AWS, awsNodeManager *operatorv1al
 		}
 	}
 	if len(instanceIDs) == 0 {
+		awsNodeManager.Status.NotJoinedAWSNodes = nil
 		return nil
 	}
 	nodes, err := cloud.GetAWSNodes(instanceIDs)
