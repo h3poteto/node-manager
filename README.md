@@ -1,5 +1,5 @@
 [![Test](https://github.com/h3poteto/node-manager/actions/workflows/test.yml/badge.svg)](https://github.com/h3poteto/node-manager/actions/workflows/test.yml)
-[![Docker](https://github.com/h3poteto/node-manager/actions/workflows/docker.yml/badge.svg)](https://github.com/h3poteto/node-manager/actions/workflows/docker.yml)
+[![Docker](https://github.com/h3poteto/node-manager/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/h3poteto/node-manager/actions/workflows/docker-publish.yml)
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/h3poteto/node-manager)](https://github.com/h3poteto/node-manager/releases)
 
 # Node Manager
