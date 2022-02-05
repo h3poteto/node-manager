@@ -31,10 +31,11 @@ func TestRefreshReplace(t *testing.T) {
 					Region:                   "us-east-1",
 					AutoScalingGroups:        nil,
 					Desired:                  2,
-					ASGModifyCoolTimeSeconds: 600,
+					ASGModifyCoolTimeSeconds: 300,
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: []operatorv1alpha1.AWSNode{
@@ -88,6 +89,7 @@ func TestRefreshReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: []operatorv1alpha1.AWSNode{
@@ -200,6 +202,7 @@ func TestShouldReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: []operatorv1alpha1.AWSNode{
@@ -228,7 +231,7 @@ func TestShouldReplace(t *testing.T) {
 						Time: time.Now().Add(-10 * time.Minute),
 					},
 					Revision: 0,
-					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+					Phase:    operatorv1alpha1.AWSNodeRefresherDraining,
 					NextUpdateTime: &metav1.Time{
 						Time: time.Now().Add(24 * time.Hour),
 					},
@@ -254,6 +257,7 @@ func TestShouldReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: []operatorv1alpha1.AWSNode{
@@ -292,7 +296,7 @@ func TestShouldReplace(t *testing.T) {
 						Time: time.Now().Add(-10 * time.Minute),
 					},
 					Revision: 0,
-					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+					Phase:    operatorv1alpha1.AWSNodeRefresherDraining,
 					NextUpdateTime: &metav1.Time{
 						Time: time.Now().Add(24 * time.Hour),
 					},
@@ -318,6 +322,7 @@ func TestShouldReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             0,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: []operatorv1alpha1.AWSNode{
@@ -346,7 +351,7 @@ func TestShouldReplace(t *testing.T) {
 						Time: time.Now().Add(-10 * time.Minute),
 					},
 					Revision: 0,
-					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+					Phase:    operatorv1alpha1.AWSNodeRefresherDraining,
 					NextUpdateTime: &metav1.Time{
 						Time: time.Now().Add(24 * time.Hour),
 					},
@@ -372,6 +377,7 @@ func TestShouldReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             0,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: []operatorv1alpha1.AWSNode{
@@ -400,7 +406,7 @@ func TestShouldReplace(t *testing.T) {
 						Time: time.Now().Add(-10 * time.Minute),
 					},
 					Revision: 0,
-					Phase:    operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+					Phase:    operatorv1alpha1.AWSNodeRefresherDraining,
 					NextUpdateTime: &metav1.Time{
 						Time: time.Now().Add(24 * time.Hour),
 					},
@@ -448,6 +454,7 @@ func TestRetryReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: nil,
@@ -488,6 +495,7 @@ func TestRetryReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: nil,
@@ -572,6 +580,7 @@ func TestRetryReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: nil,
@@ -641,6 +650,7 @@ func TestRetryReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: nil,
@@ -721,6 +731,7 @@ func TestShouldRetryReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: nil,
@@ -789,6 +800,7 @@ func TestShouldRetryReplace(t *testing.T) {
 					Role:                     operatorv1alpha1.Worker,
 					Schedule:                 "* * * * *",
 					SurplusNodes:             1,
+					DrainGracePeriodSeconds:  300,
 				},
 				Status: operatorv1alpha1.AWSNodeRefresherStatus{
 					AWSNodes: nil,

@@ -50,6 +50,9 @@ type AWSNodeManagerSpec struct {
 	// +kubebuilder:validation:Type:=integer
 	// +kubebuilder:default=1
 	SurplusNodes int64 `json:"surplusNodes"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=integer
+	DrainGracePeriodSeconds int64 `json:"drainGracePeriodSeconds"`
 }
 
 // AWSNodeManagerStatus defines the observed state of AWSNodeManager
@@ -96,7 +99,9 @@ func init() {
 }
 
 type AWSNode struct {
-	Name                 string      `json:"name"`
+	// Node name in the Kubernetes cluster
+	Name string `json:"name"`
+	// InstanceID of EC2 instances
 	InstanceID           string      `json:"instanceID"`
 	AvailabilityZone     string      `json:"availabilityZone"`
 	InstanceType         string      `json:"instanceType"`

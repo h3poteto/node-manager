@@ -43,6 +43,9 @@ type AWSNodeRefresherSpec struct {
 	// +kubebuilder:validation:Type:=integer
 	// +kubebuilder:default=1
 	SurplusNodes int64 `json:"surplusNodes"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=integer
+	DrainGracePeriodSeconds int64 `json:"drainGracePeriodSeconds"`
 }
 
 // AWSNodeRefresherStatus defines the observed state of AWSNodeRefresher
@@ -98,6 +101,7 @@ const (
 	AWSNodeRefresherInit             = AWSNodeRefresherPhase("init")
 	AWSNodeRefresherScheduled        = AWSNodeRefresherPhase("scheduled")
 	AWSNodeRefresherUpdateIncreasing = AWSNodeRefresherPhase("increasing")
+	AWSNodeRefresherDraining         = AWSNodeRefresherPhase("draining")
 	AWSNodeRefresherUpdateReplacing  = AWSNodeRefresherPhase("replacing")
 	AWSNodeRefresherUpdateAWSWaiting = AWSNodeRefresherPhase("awsWaiting")
 	AWSNodeRefresherUpdateDecreasing = AWSNodeRefresherPhase("decreasing")

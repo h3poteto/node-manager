@@ -18,15 +18,10 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 		return nil
 	}
 
-	target, err := findDeleteTarget(refresher.Status.AWSNodes)
-	if err != nil {
-		return err
-	}
-
 	now := metav1.Now()
+	target := refresher.Status.ReplaceTargetNode
 	refresher.Status.Phase = operatorv1alpha1.AWSNodeRefresherUpdateReplacing
 	refresher.Status.LastASGModifiedTime = &now
-	refresher.Status.ReplaceTargetNode = target
 	refresher.Status.Revision += 1
 	if err := r.Client.Update(ctx, refresher); err != nil {
 		klog.Errorf(ctx, "failed to update refresher: %v", err)
@@ -38,7 +33,7 @@ func (r *AWSNodeRefresherReconciler) refreshReplace(ctx context.Context, refresh
 }
 
 func shouldReplace(ctx context.Context, refresher *operatorv1alpha1.AWSNodeRefresher) bool {
-	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherUpdateIncreasing {
+	if refresher.Status.Phase != operatorv1alpha1.AWSNodeRefresherDraining {
 		klog.Warningf(ctx, "AWSNodeRefresher phase is not matched: %s, so should not replace", refresher.Status.Phase)
 		return false
 	}

@@ -50,6 +50,7 @@ type AWSNodeRefresherReconciler struct {
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnoderefreshers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=operator.h3poteto.dev,resources=awsnoderefreshers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;update;patch
 
 func (r *AWSNodeRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("awsnoderefresher", req.NamespacedName)
@@ -122,6 +123,18 @@ func (r *AWSNodeRefresherReconciler) syncRefresher(ctx context.Context, refreshe
 		}
 		if waiting {
 			return nil
+		}
+		if retried {
+			return nil
+		}
+		return r.refreshDrain(ctx, refresher)
+	case operatorv1alpha1.AWSNodeRefresherDraining:
+		timeout, retried, err := r.retryDrain(ctx, refresher)
+		if err != nil {
+			return err
+		}
+		if timeout {
+			return r.refreshReplace(ctx, refresher)
 		}
 		if retried {
 			return nil
