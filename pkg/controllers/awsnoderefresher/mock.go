@@ -50,7 +50,8 @@ func (m *mockedEC2API) TerminateInstances(in *ec2.TerminateInstancesInput) (*ec2
 
 type mockedClient struct {
 	client.Client
-	getFunc func(obj client.Object) error
+	getFunc  func(obj client.Object) error
+	listFunc func(listObj client.ObjectList) error
 }
 
 func (m *mockedClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
@@ -59,6 +60,10 @@ func (m *mockedClient) Update(ctx context.Context, obj client.Object, opts ...cl
 
 func (m *mockedClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object) error {
 	return m.getFunc(obj)
+}
+
+func (m *mockedClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return m.listFunc(list)
 }
 
 type mockedRecorder struct {
