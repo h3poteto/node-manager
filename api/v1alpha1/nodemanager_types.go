@@ -95,6 +95,9 @@ type Nodes struct {
 	// +kubebuilder:validation:Type:=integer
 	// +kubebuilder:default=1
 	SurplusNodes int64 `json:"surplusNodes"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=integer
+	DrainGracePeriodSeconds int64 `json:"drainGracePeriodSeconds"`
 }
 
 type AutoScalingGroup struct {
