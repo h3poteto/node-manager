@@ -147,6 +147,7 @@ func (r *AWSNodeManagerReconciler) syncAWSNodeManager(ctx context.Context, awsNo
 	if refresher != nil {
 		switch refresher.Status.Phase {
 		case operatorv1alpha1.AWSNodeRefresherUpdateIncreasing,
+			operatorv1alpha1.AWSNodeRefresherDraining,
 			operatorv1alpha1.AWSNodeRefresherUpdateReplacing,
 			operatorv1alpha1.AWSNodeRefresherUpdateAWSWaiting,
 			operatorv1alpha1.AWSNodeRefresherUpdateDecreasing:
