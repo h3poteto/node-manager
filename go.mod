@@ -1,6 +1,6 @@
 module github.com/h3poteto/node-manager
 
-go 1.18
+go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.43.31
