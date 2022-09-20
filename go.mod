@@ -4,14 +4,14 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.43.31
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.0
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
-	k8s.io/api v0.22.8
-	k8s.io/apimachinery v0.22.8
-	k8s.io/client-go v0.22.8
-	k8s.io/klog/v2 v2.9.0
-	k8s.io/utils v0.0.0-20211116205334-6203023598ed
-	sigs.k8s.io/controller-runtime v0.10.3
+	k8s.io/api v0.24.5
+	k8s.io/apimachinery v0.24.5
+	k8s.io/client-go v0.24.5
+	k8s.io/klog/v2 v2.60.1
+	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
+	sigs.k8s.io/controller-runtime v0.12.3
 )
 
 require (
