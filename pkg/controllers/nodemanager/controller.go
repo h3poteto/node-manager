@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	NodeMasterLabel = "node-role.kubernetes.io/master"
+	NodeMasterLabel = "node-role.kubernetes.io/control-plane"
 	NodeWorkerLabel = "node-role.kubernetes.io/node"
 )
 
