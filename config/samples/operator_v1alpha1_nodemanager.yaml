@@ -11,7 +11,7 @@ spec:
       desired: 3
       asgModifyCoolTimeSeconds: 300
       drainGracePeriodSeconds: 300
-      refreshSchedule: "45 0 * * *"
+      refreshSchedule: "30 0 * * *"
       enableReplenish: false
       surplusNodes: 0
       autoScalingGroups:
@@ -22,7 +22,7 @@ spec:
       desired: 3
       asgModifyCoolTimeSeconds: 300
       drainGracePeriodSeconds: 300
-      refreshSchedule: "45 21 * * *"
+      refreshSchedule: "30 * * * *"
       enableReplenish: false
       surplusNodes: 1
       autoScalingGroups:

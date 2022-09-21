@@ -32,7 +32,7 @@ func (a *AWS) DescribeInstance(node *operatorv1alpha1.AWSNode) (*ec2.Instance, e
 		DryRun: nil,
 		Filters: []*ec2.Filter{
 			{
-				Name: aws.String("private-dns-name"),
+				Name: aws.String("instance-id"),
 				Values: []*string{
 					aws.String(node.Name),
 				},
