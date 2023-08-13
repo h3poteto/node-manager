@@ -55,7 +55,7 @@ type mockedClient struct {
 	updatedObj client.Object
 }
 
-func (m *mockedClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object) error {
+func (m *mockedClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 	return m.getFunc(obj)
 }
 
