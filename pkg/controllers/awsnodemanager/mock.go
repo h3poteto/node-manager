@@ -42,7 +42,7 @@ func (m *mockedClient) Update(ctx context.Context, obj client.Object, opts ...cl
 	return nil
 }
 
-func (m *mockedClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object) error {
+func (m *mockedClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 	return m.getFunc(obj)
 }
 
