@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.44.322
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.4.2
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	k8s.io/api v0.26.7
 	k8s.io/apimachinery v0.26.7
