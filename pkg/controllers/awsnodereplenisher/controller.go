@@ -87,13 +87,13 @@ func (r *AWSNodeReplenisherReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	external := externalevent.NewExternalEventWatcher(5*time.Minute, func(ctx context.Context, c client.Client) ([]client.Object, error) {
+	external := externalevent.NewExternalEventWatcher[*operatorv1alpha1.AWSNodeReplenisher](5*time.Minute, func(ctx context.Context, c client.Client) ([]*operatorv1alpha1.AWSNodeReplenisher, error) {
 		var replenishers operatorv1alpha1.AWSNodeReplenisherList
 		err := c.List(ctx, &replenishers)
 		if err != nil {
 			return nil, err
 		}
-		var list []client.Object
+		var list []*operatorv1alpha1.AWSNodeReplenisher
 		for i := range replenishers.Items {
 			item := &replenishers.Items[i]
 			list = append(list, item)
@@ -104,12 +104,11 @@ func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	if err != nil {
 		return err
 	}
-	src := source.Channel{
-		Source: external.Channel,
-	}
+	src := source.Channel(external.Channel, &handler.TypedEnqueueRequestForObject[*operatorv1alpha1.AWSNodeReplenisher]{})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.AWSNodeReplenisher{}).
-		Watches(&src, &handler.EnqueueRequestForObject{}).
+		WatchesRawSource(src).
 		Complete(r)
 }
 
