@@ -36,65 +36,8 @@ rules:
   - operator.h3poteto.dev
   resources:
   - awsnodemanagers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - operator.h3poteto.dev
-  resources:
-  - awsnodemanagers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - operator.h3poteto.dev
-  resources:
   - awsnoderefreshers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - operator.h3poteto.dev
-  resources:
-  - awsnoderefreshers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - operator.h3poteto.dev
-  resources:
   - awsnodereplenishers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - operator.h3poteto.dev
-  resources:
-  - awsnodereplenishers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - operator.h3poteto.dev
-  resources:
   - nodemanagers
   verbs:
   - create
@@ -107,6 +50,9 @@ rules:
 - apiGroups:
   - operator.h3poteto.dev
   resources:
+  - awsnodemanagers/status
+  - awsnoderefreshers/status
+  - awsnodereplenishers/status
   - nodemanagers/status
   verbs:
   - get
