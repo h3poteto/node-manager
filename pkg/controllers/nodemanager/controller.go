@@ -28,7 +28,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	pkgctx "github.com/h3poteto/node-manager/pkg/util/context"
@@ -87,7 +86,7 @@ func (r *NodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.NodeManager{}).
 		Owns(&operatorv1alpha1.AWSNodeManager{}).
-		Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 

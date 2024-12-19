@@ -25,7 +25,10 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	operatorv1alpha1 "github.com/h3poteto/node-manager/api/v1alpha1"
 	"github.com/h3poteto/node-manager/pkg/controllers/awsnodemanager"
@@ -60,12 +63,18 @@ func main() {
 
 	duration := 5 * time.Minute
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "aad8c6e7.h3poteto.dev",
-		SyncPeriod:         &duration,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
+		LeaderElection:   enableLeaderElection,
+		LeaderElectionID: "aad8c6e7.h3poteto.dev",
+		Cache: cache.Options{
+			SyncPeriod: &duration,
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

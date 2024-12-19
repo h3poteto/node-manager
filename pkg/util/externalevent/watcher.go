@@ -9,31 +9,31 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-type externalEventWatcher struct {
-	Channel  chan event.GenericEvent
+type externalEventWatcher[T client.Object] struct {
+	Channel  chan event.TypedGenericEvent[T]
 	client   client.Client
 	interval time.Duration
-	fn       ListFunc
+	fn       ListFunc[T]
 }
 
-type ListFunc = func(ctx context.Context, c client.Client) ([]client.Object, error)
+type ListFunc[T client.Object] func(ctx context.Context, c client.Client) ([]T, error)
 
-func NewExternalEventWatcher(interval time.Duration, listFn ListFunc) *externalEventWatcher {
-	ch := make(chan event.GenericEvent)
+func NewExternalEventWatcher[T client.Object](interval time.Duration, listFn ListFunc[T]) *externalEventWatcher[T] {
+	ch := make(chan event.TypedGenericEvent[T])
 
-	return &externalEventWatcher{
+	return &externalEventWatcher[T]{
 		Channel:  ch,
 		interval: interval,
 		fn:       listFn,
 	}
 }
 
-func (e *externalEventWatcher) InjectClient(c client.Client) error {
+func (e *externalEventWatcher[T]) InjectClient(c client.Client) error {
 	e.client = c
 	return nil
 }
 
-func (e *externalEventWatcher) Start(ctx context.Context) error {
+func (e *externalEventWatcher[T]) Start(ctx context.Context) error {
 	ticker := time.NewTicker(e.interval)
 	defer ticker.Stop()
 
@@ -48,7 +48,7 @@ func (e *externalEventWatcher) Start(ctx context.Context) error {
 			}
 			for _, ref := range list {
 				klog.Infof(ctx, "Force syncing %s/%s", ref.GetNamespace(), ref.GetName())
-				e.Channel <- event.GenericEvent{
+				e.Channel <- event.TypedGenericEvent[T]{
 					Object: ref,
 				}
 			}
