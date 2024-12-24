@@ -105,6 +105,10 @@ func (r *AWSNodeManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
+	err = external.InjectClient(mgr.GetClient())
+	if err != nil {
+		return err
+	}
 	src := source.Channel(external.Channel, &handler.TypedEnqueueRequestForObject[*operatorv1alpha1.AWSNodeManager]{})
 
 	return ctrl.NewControllerManagedBy(mgr).

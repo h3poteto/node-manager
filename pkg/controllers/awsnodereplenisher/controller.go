@@ -104,6 +104,10 @@ func (r *AWSNodeReplenisherReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	if err != nil {
 		return err
 	}
+	err = external.InjectClient(mgr.GetClient())
+	if err != nil {
+		return err
+	}
 	src := source.Channel(external.Channel, &handler.TypedEnqueueRequestForObject[*operatorv1alpha1.AWSNodeReplenisher]{})
 
 	return ctrl.NewControllerManagedBy(mgr).
