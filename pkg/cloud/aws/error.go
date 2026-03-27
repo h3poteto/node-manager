@@ -13,7 +13,7 @@ func NewInstanceNotYetJoinErrorf(format string, a ...interface{}) *InstanceNotYe
 }
 
 func (err *InstanceNotYetJoinError) Error() string {
-	return fmt.Sprintf(err.Msg)
+	return err.Msg
 }
 
 func (err *InstanceNotYetJoinError) Is(target error) bool {
@@ -31,7 +31,7 @@ func NewDesiredInvalidErrorf(format string, a ...interface{}) *DesiredInvalidErr
 }
 
 func (err *DesiredInvalidError) Error() string {
-	return fmt.Sprintf(err.Msg)
+	return err.Msg
 }
 
 func (err *DesiredInvalidError) Is(target error) bool {
@@ -49,7 +49,7 @@ func NewCouldNotFoundNameTagError(format string, a ...interface{}) *CouldNotFoun
 }
 
 func (err *CouldNotFoundNameTagError) Error() string {
-	return fmt.Sprintf(err.Msg)
+	return err.Msg
 }
 
 func (err *CouldNotFoundNameTagError) Is(target error) bool {
