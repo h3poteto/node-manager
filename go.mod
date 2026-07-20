@@ -6,7 +6,7 @@ toolchain go1.25.5
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	k8s.io/api v0.35.3
 	k8s.io/apimachinery v0.35.3
